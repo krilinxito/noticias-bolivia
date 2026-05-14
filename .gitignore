@@ -1,0 +1,36 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Alembic migrations (generadas, no editar a mano)
+alembic/versions/*.py
+!alembic/versions/.gitkeep
+
+# Node / frontend
+frontend/node_modules/
+frontend/.env
+frontend/dist/
+frontend/.astro/
+
+# LaTeX auxiliares
+informe/*.aux
+informe/*.log
+informe/*.out
+informe/*.toc
+informe/*.fls
+informe/*.fdb_latexmk
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

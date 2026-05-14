@@ -1,0 +1,704 @@
+\documentclass[12pt,a4paper]{article}
+
+% ---- Codificación y lengua ----
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[provide=*,spanish]{babel}
+
+% ---- Márgenes ----
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+
+% ---- Tipografía ----
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ---- Matemáticas ----
+\usepackage{amsmath}
+
+% ---- Colores ----
+\usepackage[dvipsnames,svgnames,table]{xcolor}
+\definecolor{azulAS}{RGB}{30,90,160}
+\definecolor{verdePos}{RGB}{46,125,50}
+\definecolor{rojoNeg}{RGB}{183,28,28}
+\definecolor{grisCelda}{RGB}{240,245,250}
+
+% ---- Gráficos y figuras ----
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{caption}
+\captionsetup{font=small, labelfont=bf}
+
+% ---- TikZ para diagramas ----
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, shapes}
+
+% ---- Tablas ----
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{colortbl}
+
+% ---- Código fuente ----
+\usepackage{listings}
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{grisCelda},
+  frame=single,
+  breaklines=true,
+  captionpos=b,
+  keywordstyle=\color{azulAS}\bfseries,
+  commentstyle=\color{verdePos},
+  stringstyle=\color{rojoNeg},
+  language=Python,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=5pt,
+  showstringspaces=false,
+  tabsize=2,
+  extendedchars=true,
+  inputencoding=utf8,
+  literate=
+    {á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+    {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+    {ñ}{{\~n}}1 {Ñ}{{\~N}}1
+    {ü}{{\"u}}1 {¿}{{?`}}1 {¡}{{!`}}1
+}
+
+% ---- Hipervínculos ----
+\usepackage[colorlinks=true, linkcolor=azulAS, citecolor=verdePos,
+            urlcolor=azulAS, bookmarks=true]{hyperref}
+
+% ---- Encabezados ----
+\usepackage{fancyhdr}
+\setlength{\headheight}{14pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small El Observador Digital}
+\fancyhead[R]{\small \thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+\emergencystretch=3em
+
+% ---- Espaciado ----
+\usepackage{setspace}
+\onehalfspacing
+
+% ---- Secciones con color ----
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\color{azulAS}}{\thesection.}{0.5em}{}[\titlerule]
+\titleformat{\subsection}{\normalsize\bfseries\color{azulAS}}{\thesubsection.}{0.5em}{}
+\titleformat{\subsubsection}{\normalsize\itshape\color{azulAS}}{\thesubsubsection.}{0.5em}{}
+
+% ---- Enumeraciones ----
+\usepackage{enumitem}
+
+\begin{document}
+
+%---------------------------------------------------------------
+% CARÁTULA
+%---------------------------------------------------------------
+\begin{titlepage}
+  \thispagestyle{empty}
+  \singlespacing
+  \centering
+
+  \vspace*{0.5cm}
+
+  {\Large\bfseries Universidad Mayor de San Andrés}\\[0.3em]
+  {\normalsize Facultad de Ciencias Puras y Naturales}\\[0.15em]
+  {\normalsize Carrera de Informática}
+
+  \vspace{0.5cm}
+
+  \includegraphics[width=2.8cm]{imagenes/Logo_Umsa.png}
+
+  \vspace{0.6cm}
+
+  {\color{azulAS}\rule{\linewidth}{1.5pt}}
+  \vspace{0.35cm}
+
+  {\LARGE\bfseries El Observador Digital}\\[0.35em]
+  {\large Plataforma de análisis comparativo\\[0.15em]
+   de medios bolivianos}
+
+  \vspace{0.35cm}
+  {\color{azulAS}\rule{\linewidth}{1.5pt}}
+
+  \vspace{0.7cm}
+
+  {\large Maximiliano Gómez Mallo}\\[0.15em]
+  {\normalsize 14480221}
+
+  \vspace{0.7cm}
+
+  \begin{tabular}{ll}
+    \textbf{Materia:}  & Minería de Datos \\[0.25em]
+    \textbf{Docente:}  & Menfy Morales Rios \\[0.25em]
+    \textbf{Fecha:}    & La Paz, Bolivia --- Mayo 2026 \\
+  \end{tabular}
+
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Resumen Ejecutivo}
+% ============================================================
+
+\textbf{El Observador Digital} es una plataforma automática de monitoreo y análisis comparativo de medios de comunicación bolivianos. El sistema vigila continuamente seis portales de noticias --- Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol y La Razón --- recolectando artículos nuevos cada 30 minutos y procesándolos con técnicas de inteligencia artificial local y en la nube.
+
+El flujo de trabajo central es el siguiente: los artículos recién descargados se convierten en vectores numéricos mediante un modelo de lenguaje local (\textit{MiniLM-L12-v2}), se calcula la similitud entre ellos y se agrupan automáticamente aquellos que tratan el mismo evento noticioso. Posteriormente, la API de Gemini analiza el tono editorial de cada artículo y detecta diferencias de encuadre entre los distintos medios que cubren el mismo hecho.
+
+Los resultados son accesibles a través de una interfaz web con cinco vistas temáticas: portada, cronología de eventos, visualización de sesgos editoriales, cronología de artículos y serie temporal. Adicionalmente, el sistema ofrece un asistente de inteligencia artificial conversacional capaz de responder preguntas sobre los datos monitoreados en lenguaje natural.
+
+La plataforma corre en un servidor VPS con costes de infraestructura mínimos: el modelo de \textit{embeddings} funciona en CPU sin costo alguno, y la API de Gemini se usa en el nivel gratuito.
+
+% ============================================================
+\section{Motivación}
+% ============================================================
+
+Bolivia tiene un ecosistema mediático marcadamente fragmentado. Los principales diarios y portales de noticias se concentran en tres ciudades --- Santa Cruz de la Sierra, Cochabamba y La Paz --- y cada uno responde a una línea editorial propia, condicionada por factores regionales, económicos y políticos. Este fenómeno es conocido en el ámbito del periodismo como \textit{sesgo editorial}: la tendencia de un medio a presentar un mismo hecho desde un encuadre particular, seleccionando ciertos datos, omitiendo otros y eligiendo un vocabulario con carga valorativa.
+
+Un ejemplo cotidiano: una manifestación en La Paz puede aparecer en un portal paceño como ``protesta ciudadana legítima'' y en un diario cruceño como ``bloqueo que afecta la economía''. Ambos describen el mismo evento; ninguno miente; pero la percepción que transmiten al lector es radicalmente distinta.
+
+Monitorear manualmente estos sesgos es inviable. Un analista tendría que leer decenas de artículos al día de múltiples portales, identificar cuáles tratan el mismo tema, compararlos y registrar las diferencias. El tiempo necesario para esa tarea supera con creces los recursos de cualquier investigador individual.
+
+\textbf{El Observador Digital} automatiza ese proceso completo. En lugar de requerir intervención humana para agrupar artículos o detectar diferencias editoriales, el sistema:
+
+\begin{itemize}[nosep]
+  \item Descarga artículos de seis portales de forma continua y estructurada.
+  \item Identifica automáticamente qué artículos de distintos medios hablan del mismo evento, sin necesidad de que compartan palabras clave exactas.
+  \item Cuantifica y visualiza las diferencias de encuadre entre medios para el mismo evento.
+  \item Proporciona una interfaz de consulta en lenguaje natural para que cualquier usuario pueda explorar los datos.
+\end{itemize}
+
+El objetivo no es juzgar qué medio es más o menos confiable, sino ofrecer una herramienta transparente que permita al lector ver el panorama completo de cómo se está cubriendo un tema en Bolivia.
+
+% ============================================================
+\section{Arquitectura General}
+% ============================================================
+
+El sistema está organizado en cuatro capas funcionales que operan como un \textit{pipeline} secuencial. La Figura~\ref{fig:arquitectura} muestra el flujo de datos desde la recolección hasta la presentación.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[
+  node distance=0.7cm,
+  box/.style={
+    rectangle, rounded corners=4pt,
+    draw=black, fill=blue!10,
+    minimum width=9cm, minimum height=1cm,
+    align=center, font=\small\bfseries
+  },
+  subbox/.style={
+    rectangle, rounded corners=2pt,
+    draw=gray, fill=gray!10,
+    minimum width=8.2cm, minimum height=0.6cm,
+    align=center, font=\footnotesize
+  },
+  arrow/.style={-{Stealth[length=6pt]}, thick},
+  sidelabel/.style={font=\footnotesize\itshape, text=gray}
+]
+
+% Capa 1
+\node[box, fill=orange!20] (L1) {CAPA 1: RECOLECCIÓN};
+\node[subbox, below=0.15cm of L1] (L1a) {6 medios: scraping de portal (5) + RSS (La Razón)};
+\node[subbox, below=0.1cm of L1a] (L1b) {Extracción de cuerpo de artículo (BeautifulSoup)};
+
+% Capa 2
+\node[box, fill=green!20, below=0.5cm of L1b] (L2) {CAPA 2: ANÁLISIS LOCAL (NLP)};
+\node[subbox, below=0.15cm of L2] (L2a) {Sentence Embeddings --- MiniLM-L12-v2 (384 dims)};
+\node[subbox, below=0.1cm of L2a] (L2b) {Similitud coseno → Union-Find → Clustering};
+\node[subbox, below=0.1cm of L2b] (L2c) {KeyBERT → Palabras clave del evento};
+
+% Capa 3
+\node[box, fill=purple!20, below=0.5cm of L2c] (L3) {CAPA 3: ANÁLISIS IA (Gemini API)};
+\node[subbox, below=0.15cm of L3] (L3a) {Tono por artículo --- gemini-2.5-flash-lite};
+\node[subbox, below=0.1cm of L3a] (L3b) {Sesgo comparativo entre medios --- gemini-2.5-flash};
+
+% Capa 4
+\node[box, fill=cyan!20, below=0.5cm of L3b] (L4) {CAPA 4: PRESENTACIÓN};
+\node[subbox, below=0.15cm of L4] (L4a) {FastAPI REST --- 6 endpoints};
+\node[subbox, below=0.1cm of L4a] (L4b) {Astro SSR --- 5 vistas + chat IA};
+
+% Scheduler (lateral)
+\node[sidelabel, right=0.4cm of L1, xshift=1.2cm] (S1) {cada 30 min};
+\node[sidelabel, right=0.4cm of L2, xshift=1.2cm] (S2) {cada 60 min};
+
+% Flechas principales
+\draw[arrow] (L1b) -- (L2);
+\draw[arrow] (L2c) -- (L3);
+\draw[arrow] (L3b) -- (L4);
+
+% Base de datos lateral
+\node[cylinder, shape border rotate=90, draw=black, fill=yellow!20,
+      minimum height=1.2cm, minimum width=1.4cm,
+      right=1.8cm of L2, font=\footnotesize, align=center] (DB)
+      {Post\\greSQL};
+
+\draw[arrow, dashed] (L2c.east) -- ++(0.5,0) |- (DB.west);
+\draw[arrow, dashed] (L3b.east) -- ++(0.5,0) |- (DB.east);
+\draw[arrow, dashed] (DB.south) -- ++(0,-0.3) -| (L4.east);
+
+\end{tikzpicture}
+\caption{Pipeline de cuatro capas del sistema El Observador Digital.}
+\label{fig:arquitectura}
+\end{figure}
+
+El \textbf{programador de tareas} (\textit{APScheduler}) coordina dos ciclos: recolección cada 30 minutos y análisis cada 60 minutos. Ambos ciclos son independientes: el análisis siempre trabaja sobre los artículos ya almacenados en la base de datos.
+
+% ============================================================
+\section{Recolección de Datos}
+% ============================================================
+
+\subsection{Por qué el RSS puro no funciona en Bolivia}
+
+La sindicación RSS es el mecanismo estándar que los portales de noticias exponen para que lectores y agregadores reciban contenido nuevo automáticamente. En teoría, basta con suscribirse al feed de cada medio y recibirlo actualizado.
+
+En la práctica boliviana, ese supuesto falla por dos razones. Primero, varios portales relevantes no ofrecen feed RSS (o lo tienen deshabilitado). Segundo, los feeds que sí existen suelen actualizarse con un retraso de dos a tres semanas respecto al portal real: el equipo técnico del medio publica primero en la web y actualiza el RSS de forma manual o esporádica.
+
+La solución adoptada es un enfoque \textbf{híbrido}: scraping directo del portal de listado para cinco medios (Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol), y RSS únicamente para La Razón, que implementa una \textit{Single Page Application} (SPA) con JavaScript que impide el scraping tradicional.
+
+La estrategia de scraping de portal funciona en dos pasos:
+\begin{enumerate}[nosep]
+  \item Descargar la página de portada o sección de últimas noticias del medio.
+  \item Extraer todas las URLs que encajan con una expresión regular específica del medio (por ejemplo, \texttt{/\textasciicircum https://elbeber\.com/\textbackslash d+/} para El Deber).
+\end{enumerate}
+
+\subsection{Extracción del cuerpo del artículo}
+
+Para cada URL nueva detectada se realiza una petición HTTP GET con reintentos automáticos (hasta 3 intentos con espera exponencial en caso de error de red). El HTML recibido se procesa con \textbf{BeautifulSoup}:
+
+\begin{lstlisting}[language=Python, caption=Extracción simplificada del cuerpo del artículo]
+soup = BeautifulSoup(html, "html.parser")
+
+# Eliminar elementos no informativos (scripts, estilos, nav)
+for tag in soup(["script", "style", "nav", "footer", "aside"]):
+    tag.decompose()
+
+# Buscar el contenedor principal del articulo
+container = (
+    soup.find("article") or
+    soup.find(class_=re.compile(r"article|content|body|nota"))
+)
+body_text = container.get_text(separator=" ", strip=True)
+\end{lstlisting}
+
+La extracción de la fecha de publicación sigue un orden de prioridad decreciente:
+\begin{enumerate}[nosep]
+  \item Metaetiqueta OpenGraph: \texttt{<meta property="article:published\_time">}
+  \item JSON-LD embebido: campo \texttt{datePublished}
+  \item Elemento HTML5: \texttt{<time datetime="...">}
+\end{enumerate}
+
+\subsection{Filtros de calidad}
+
+Antes de insertar un artículo en la base de datos se aplican cuatro filtros:
+
+\begin{itemize}[nosep]
+  \item \textbf{Deduplicación por URL}: la tabla tiene una restricción \texttt{UNIQUE} sobre la URL; si ya existe, se omite sin error.
+  \item \textbf{Título mínimo}: el título debe tener al menos 10 caracteres (elimina títulos vacíos o corruptos).
+  \item \textbf{Cuerpo mínimo}: el cuerpo del artículo debe superar los 200 caracteres (descarta artículos de solo imagen o video sin texto).
+  \item \textbf{Antigüedad máxima}: artículos con fecha de publicación superior a 30 días se descartan (evita poblar la base de datos con contenido histórico irrelevante al inicio).
+\end{itemize}
+
+\subsection{Manejo de zonas horarias}
+
+Los portales bolivianos publican las fechas en hora local (UTC-4, sin horario de verano). La base de datos almacena estas fechas \textit{sin información de zona horaria} (\textit{naive datetime}) tal como vienen. La API REST aplica el sufijo adecuado al serializar:
+
+\begin{itemize}[nosep]
+  \item \texttt{fecha\_publicacion}: se añade el sufijo \texttt{-04:00} (hora boliviana).
+  \item \textit{Timestamps} del sistema (fecha de scraping, detección de eventos): se añade \texttt{Z} (UTC).
+\end{itemize}
+
+Este convenio permite al cliente frontend mostrar tiempos relativos correctos sin conversiones adicionales.
+
+% ============================================================
+\section{Agrupación de Eventos con IA Local}
+% ============================================================
+
+\subsection{Representación vectorial de artículos (\textit{embeddings})}
+
+El primer desafío para agrupar artículos es representarlos de una forma que la computadora pueda comparar. El texto en crudo no es directamente comparable: dos artículos sobre la misma huelga pueden no compartir ninguna palabra si uno usa ``paro'' y el otro ``huelga''.
+
+La solución son los \textbf{embeddings semánticos}: una técnica que convierte cualquier texto en una lista de 384 números reales. La metáfora más útil es pensar en esos números como \textit{coordenadas GPS del significado}: textos sobre temas similares terminan cerca en ese espacio de 384 dimensiones, aunque usen vocabulario distinto.
+
+El modelo utilizado es \textbf{MiniLM-L12-v2}, parte de la familia \textit{sentence-transformers}. Ocupa aproximadamente 120 MB, se descarga una sola vez y funciona íntegramente en CPU sin necesidad de GPU ni de llamadas a APIs externas. El coste computacional por artículo es de decenas de milisegundos.
+
+\begin{lstlisting}[language=Python, caption=Generación de embeddings con sentence-transformers]
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer(
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+)
+
+# texto = titulo + primeros 512 tokens del cuerpo
+vector = model.encode(texto)  # -> array de 384 floats
+\end{lstlisting}
+
+\subsection{Similitud coseno}
+
+Una vez que cada artículo tiene su vector, el siguiente paso es medir qué tan ``parecidos'' son dos artículos. La métrica usada es la \textbf{similitud coseno}:
+
+\begin{equation}
+  \cos(\theta) = \frac{\mathbf{A} \cdot \mathbf{B}}{|\mathbf{A}|\,|\mathbf{B}|} = \frac{\sum_{i=1}^{n} A_i B_i}{\sqrt{\sum_{i=1}^{n} A_i^2}\;\sqrt{\sum_{i=1}^{n} B_i^2}}
+\end{equation}
+
+Esta fórmula calcula el coseno del ángulo entre dos vectores. Su rango es de $-1$ a $1$; en la práctica, para vectores de texto generados por modelos modernos el rango efectivo es de $0$ a $1$:
+
+\begin{itemize}[nosep]
+  \item $1.0$: artículos idénticos en significado.
+  \item $0.65$--$0.85$: artículos sobre el mismo evento con redacción diferente.
+  \item $< 0.4$: artículos sobre temas no relacionados.
+\end{itemize}
+
+El umbral elegido para declarar que dos artículos pertenecen al mismo evento es $\mathbf{0.65}$. Este valor se determinó empíricamente: con $0.75$ se perdían artículos de distintos medios que cubrían el mismo hecho con vocabulario muy diferente; con $0.65$ se capturan esos casos sin agrupar artículos no relacionados.
+
+\subsection{Algoritmo Union-Find para clustering}
+
+Con las similitudes calculadas, el problema se convierte en: \textit{¿cómo agrupar artículos en eventos?}. El algoritmo \textbf{Union-Find} (también llamado \textit{Disjoint Set Union}) resuelve esto eficientemente.
+
+La idea es sencilla:
+\begin{enumerate}[nosep]
+  \item Al inicio, cada artículo está en su propio grupo (evento) individual.
+  \item Por cada par de artículos $(i, j)$ con similitud $> 0.65$: fusionar sus grupos.
+  \item Al finalizar, todos los artículos en el mismo grupo conforman un evento.
+\end{enumerate}
+
+\begin{lstlisting}[language=Python, caption=Pseudocódigo simplificado de Union-Find]
+parent = {i: i for i in articulos}
+
+def find(x):
+    if parent[x] != x:
+        parent[x] = find(parent[x])  # compresion de camino
+    return parent[x]
+
+def union(x, y):
+    parent[find(x)] = find(y)
+
+for i in articulos:
+    for j in articulos:
+        if i != j and similitud(i, j) > 0.65:
+            union(i, j)
+
+# Resultado: grupos de IDs por find(id)
+\end{lstlisting}
+
+El resultado es un conjunto de \textit{clusters}: cada cluster contiene los artículos que el algoritmo considera que tratan el mismo evento noticioso, independientemente del medio que los publicó.
+
+\subsection{Extracción de palabras clave con KeyBERT}
+
+Una vez formado un cluster, el sistema extrae las cinco palabras o frases más representativas del evento usando \textbf{KeyBERT}. Este algoritmo utiliza internamente BERT para identificar los fragmentos de texto cuyo embedding sea más similar al embedding del documento completo, es decir, las frases que mejor ``resumen'' el contenido.
+
+La entrada es la concatenación de los títulos y cuerpos de todos los artículos del cluster. La salida es una lista de hasta cinco frases clave:
+
+\begin{lstlisting}[caption=Ejemplo de salida de KeyBERT]
+["reforma tributaria", "gobierno", "impuesto", "asambleistas", "decreto"]
+\end{lstlisting}
+
+Estas palabras clave se almacenan en el campo \texttt{temas} del evento y se usan para filtrado, categorización y presentación en el frontend.
+
+% ============================================================
+\section{Análisis Editorial con Gemini}
+% ============================================================
+
+\subsection{Análisis de tono por artículo}
+
+Una vez que un artículo tiene cuerpo de texto, se envía a \textbf{gemini-2.5-flash-lite} para determinar su tono editorial. Este modelo más pequeño y económico es suficiente para un análisis por artículo individual.
+
+La petición incluye el título y los primeros 1500 caracteres del cuerpo, con temperatura 0.1 (valores bajos hacen la respuesta más determinista y reproducible). El \textit{prompt} solicita una respuesta en formato JSON:
+
+\begin{lstlisting}[caption=Esquema de respuesta de análisis de tono]
+{
+  "tono": "positivo | negativo | neutral",
+  "temas": ["tema1", "tema2"],
+  "fuentes_citadas": ["fuente1", "fuente2"]
+}
+\end{lstlisting}
+
+Si el artículo no tiene texto (solo imagen o video), el campo \texttt{analisis} se marca como \texttt{sin\_texto} y no se realiza la llamada a la API.
+
+\subsection{Análisis de sesgo comparativo entre medios}
+
+El análisis de sesgo requiere al menos dos artículos de \textbf{medios distintos} cubriendo el mismo evento, ambos con cuerpo de texto. Se usa \textbf{gemini-2.5-flash} (modelo más capaz) para esta tarea de mayor complejidad.
+
+Se envían todos los artículos del evento juntos en una sola petición. El modelo responde con un valor de sesgo por medio, en una escala de $-1.0$ a $+1.0$:
+
+\begin{itemize}[nosep]
+  \item $-1.0$: encuadre muy negativo / crítico hacia el tema del evento.
+  \item $0.0$: cobertura neutral o equilibrada.
+  \item $+1.0$: encuadre muy positivo / favorable.
+\end{itemize}
+
+La \textbf{divergencia} del evento se calcula como la diferencia entre el sesgo máximo y el mínimo entre todos los medios:
+
+\begin{equation}
+  \text{divergencia} = \max(\text{sesgos}) - \min(\text{sesgos})
+\end{equation}
+
+Ejemplo real: para un evento sobre política económica, Brújula Digital obtuvo $-0.4$ (encuadre crítico) y Los Tiempos $+0.2$ (ligeramente favorable), resultando en una divergencia de $0.6$.
+
+\subsection{Gestión de límites de la API gratuita}
+
+El nivel gratuito de Gemini impone restricciones que el sistema respeta activamente:
+
+\begin{itemize}[nosep]
+  \item \textbf{Flash-lite}: aproximadamente 20 solicitudes por día.
+  \item \textbf{Flash}: aproximadamente 15 solicitudes por minuto en el nivel gratuito.
+\end{itemize}
+
+Para no agotar la cuota, el ciclo de análisis (cada 60 minutos) procesa como máximo:
+\begin{itemize}[nosep]
+  \item 20 artículos para análisis de tono.
+  \item 3 eventos para análisis de sesgo.
+\end{itemize}
+
+Adicionalmente, se introduce una pausa de 4 segundos entre llamadas consecutivas a la API para evitar superar el límite por minuto. Esto implica que el análisis completo de la base de datos progresa gradualmente a lo largo de días.
+
+% ============================================================
+\section{API REST (FastAPI)}
+% ============================================================
+
+El backend expone una API REST construida con \textbf{FastAPI}. Todos los endpoints devuelven JSON con soporte CORS habilitado para el frontend.
+
+\begin{table}[h]
+\centering
+\caption{Endpoints principales de la API REST}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\rowcolor{azulAS!15}
+\textbf{Método} & \textbf{Endpoint} & \textbf{Parámetros clave} & \textbf{Descripción} \\
+\midrule
+GET & \texttt{/noticias} & \texttt{limit}, \texttt{medio\_nombre}, \texttt{orden} & Artículos paginados \\
+\rowcolor{grisCelda}
+GET & \texttt{/eventos} & \texttt{limit} & Eventos por importancia \\
+GET & \texttt{/eventos/\{id\}} & --- & Detalle con cobertura por medio \\
+\rowcolor{grisCelda}
+GET & \texttt{/sesgos} & \texttt{limit} & Eventos con mayor divergencia \\
+GET & \texttt{/medios} & --- & Lista de medios monitoreados \\
+\rowcolor{grisCelda}
+POST & \texttt{/chat} & \texttt{mensaje}, \texttt{historial} & Asistente IA conversacional \\
+\bottomrule
+\end{tabular}
+\label{tab:endpoints}
+\end{table}
+
+El parámetro \texttt{orden} en \texttt{/noticias} acepta \texttt{fecha} (por fecha de publicación) o \texttt{scraping} (por fecha de recolección, útil para ver lo más reciente). El \texttt{score\_importancia} de un evento se calcula como la fracción de medios monitoreados que lo cubren: $4/6 = 0.67$.
+
+\subsection*{Ejemplo de respuesta de \texttt{/eventos/\{id\}}}
+
+\begin{lstlisting}[caption=Respuesta abreviada del endpoint de detalle de evento]
+{
+  "id": 123,
+  "titulo": "Bolivia anuncia reforma tributaria",
+  "fecha_deteccion": "2026-05-14T14:00:00Z",
+  "score_importancia": 0.67,
+  "temas": ["reforma tributaria", "impuesto", "gobierno"],
+  "articulos_por_medio": {
+    "El Deber": [{
+      "titulo": "...",
+      "analisis": {"tono": "negativo", "sesgo": -0.3}
+    }],
+    "Los Tiempos": [{
+      "titulo": "...",
+      "analisis": {"tono": "neutral", "sesgo": 0.1}
+    }]
+  }
+}
+\end{lstlisting}
+
+\subsection*{Asistente IA con \textit{function calling}}
+
+El endpoint \texttt{POST /chat} integra Gemini con \textit{function calling} (herramientas). El modelo decide autónomamente cuándo llamar cada herramienta en función de la pregunta del usuario:
+
+\begin{itemize}[nosep]
+  \item \texttt{buscar\_noticias}: busca artículos por texto libre o medio.
+  \item \texttt{get\_eventos}: obtiene los eventos más recientes o importantes.
+  \item \texttt{comparar\_cobertura}: compara cómo distintos medios cubrieron un evento.
+  \item \texttt{resumen\_estadisticas}: devuelve métricas globales del sistema.
+\end{itemize}
+
+Gemini puede encadenar hasta 3 rondas de uso de herramientas antes de generar la respuesta final en lenguaje natural.
+
+% ============================================================
+\section{Frontend (Astro + React)}
+% ============================================================
+
+\subsection{Portada (/)}
+
+La página principal muestra el evento de mayor importancia en formato destacado (\textit{featured}), seguido de secciones temáticas por categoría (Política, Economía, Sociedad, Deportes, etc.). En el lateral derecho se integra el chat conversacional que permite al usuario hacer preguntas directamente sobre las noticias monitoreadas.
+
+\subsection{Eventos (/eventos)}
+
+Listado cronológico inverso de todos los eventos detectados. Cada fila muestra: etiqueta de categoría con color temático, título del evento, nombres de los medios que lo cubren, tiempo relativo desde la detección y porcentaje de importancia. La vista incluye filtros por categoría aplicables sin recarga de página.
+
+\subsection{Sesgos (/sesgos)}
+
+Visualización centrada en las diferencias editoriales. Para cada evento con análisis de sesgo, se representa un eje horizontal de $-1$ a $+1$ con un punto por cada medio que lo cubre. La dispersión visual de los puntos muestra intuitivamente la divergencia: puntos muy separados indican coberturas muy distintas, puntos agrupados indican consenso editorial. Un algoritmo de \textit{beeswarm} evita la superposición de etiquetas cuando varios medios tienen valores similares.
+
+\subsection{Cronología (/timeline)}
+
+Vista de artículos individuales ordenados por fecha de publicación. En la parte superior, un gráfico de barras por categoría sirve de filtro interactivo: clicar en una categoría filtra la lista. Cada artículo muestra un punto de color indicando su tono editorial (verde = positivo, rojo = negativo, gris = neutral).
+
+\subsection{Serie temporal (/serie)}
+
+La vista más elaborada. El gráfico SVG tiene dos secciones verticales: la superior muestra barras de densidad de artículos por día; la inferior presenta un carril (\textit{swimlane}) por categoría donde cada punto representa un evento, con su tamaño proporcional al \textit{score} de importancia. \textit{Beeswarm} se aplica también aquí para separar eventos que ocurrieron en la misma fecha. Esta vista es significativa a partir de dos o más semanas de datos continuos.
+
+\subsection{Stack tecnológico}
+
+\begin{table}[h]
+\centering
+\caption{Stack del frontend}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\rowcolor{azulAS!15}
+\textbf{Tecnología} & \textbf{Rol} \\
+\midrule
+Astro v6 (modo SSR) & Framework principal, renderizado en servidor \\
+\rowcolor{grisCelda}
+React & Componentes interactivos (islas) \\
+Tailwind CSS v4 & Estilos utilitarios \\
+\rowcolor{grisCelda}
+Playfair Display + IM Fell English & Tipografía con estética de periódico \\
+\texttt{@astrojs/node} & Adaptador para despliegue en Node.js \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+La arquitectura de \textit{islas} de Astro permite que la mayor parte del HTML se genere en el servidor (sin JavaScript al cliente), mientras que React solo se carga para los componentes que requieren interactividad real (chat, filtros, gráficos SVG).
+
+% ============================================================
+\section{Decisiones de Diseño}
+% ============================================================
+
+\begin{table}[h]
+\centering
+\caption{Decisiones de diseño y alternativas descartadas}
+\begin{tabular}{@{}p{4.2cm}p{3.5cm}p{5.5cm}@{}}
+\toprule
+\rowcolor{azulAS!15}
+\textbf{Decisión adoptada} & \textbf{Alternativa descartada} & \textbf{Razón} \\
+\midrule
+Embeddings locales (MiniLM) para clustering
+  & Embeddings de Gemini
+  & Coste cero en CPU; Gemini se reserva para análisis editorial que requiere comprensión profunda. \\
+\rowcolor{grisCelda}
+PostgreSQL + campo JSON para \texttt{analisis}
+  & MongoDB
+  & Un solo servicio (Supabase); consultas SQL para campos relacionales + flexibilidad JSON para campo variable. \\
+Umbral coseno 0.65
+  & 0.75
+  & Con 0.75 se perdían eventos cross-media; con 0.65 se capturan sin agrupar no relacionados. \\
+\rowcolor{grisCelda}
+Astro SSR + \texttt{@astrojs/node}
+  & Next.js / SvelteKit
+  & Componentes de islas (React solo donde hay interactividad), build simplificado. \\
+APScheduler en proceso
+  & Celery + Redis
+  & Proyecto monolítico simple; sin dependencias extra de infraestructura. \\
+\rowcolor{grisCelda}
+Portal scraping sobre RSS
+  & RSS puro
+  & RSS de medios bolivianos: hasta 2--3 semanas de retraso; scraping es tiempo real. \\
+\bottomrule
+\end{tabular}
+\label{tab:decisiones}
+\end{table}
+
+% ============================================================
+\section{Despliegue}
+% ============================================================
+
+El sistema corre en un servidor VPS de OVHcloud gestionado con \textbf{Dokploy}, una plataforma PaaS autoalojada que simplifica el despliegue de contenedores Docker con gestión automática de certificados SSL vía Traefik.
+
+\subsection*{Servicios Docker}
+
+\begin{itemize}[nosep]
+  \item \textbf{Backend}: imagen construida desde \texttt{Dockerfile.backend} (\texttt{python:3.11-slim}), ejecuta \texttt{uvicorn} en el puerto 8000.
+  \item \textbf{Frontend}: imagen construida desde \texttt{Dockerfile.frontend} (\texttt{node:22-slim}, compilación multietapa), sirve la aplicación Astro en el puerto 4321.
+\end{itemize}
+
+\subsection*{Variables de entorno}
+
+\begin{itemize}[nosep]
+  \item \texttt{DATABASE\_URL}: cadena de conexión al \textit{Session Pooler} de Supabase (PostgreSQL en la nube).
+  \item \texttt{GEMINI\_API\_KEY}: clave de la API de Google AI.
+  \item \texttt{PUBLIC\_API\_URL}: URL pública del backend, inyectada en el build del frontend.
+\end{itemize}
+
+\subsection*{Flujo de peticiones}
+
+\begin{center}
+\texttt{Navegador} $\rightarrow$ \texttt{Traefik (HTTPS/SSL)} $\rightarrow$ \texttt{Astro Node.js (SSR)} $\rightarrow$ \texttt{FastAPI} $\rightarrow$ \texttt{PostgreSQL (Supabase cloud)}
+\end{center}
+
+Las peticiones de scraping salientes son completamente independientes de Traefik: el scheduler del backend realiza peticiones HTTP directamente a los portales de noticias sin pasar por el proxy inverso.
+
+% ============================================================
+\section{Resultados y Ejemplos}
+% ============================================================
+
+A continuación se presenta un ejemplo concreto de funcionamiento del sistema con datos reales.
+
+\subsection*{Evento: partido de fútbol}
+
+El evento ``Bolívar empata con Nacional Potosí'' fue detectado con cobertura de cuatro medios (Red Uno, El Deber, Los Tiempos, Erbol), obteniendo un \textit{score} de importancia de $4/6 = 0.67$ (67\%).
+
+\begin{table}[h]
+\centering
+\caption{Análisis de sesgo por medio para el evento de fútbol}
+\begin{tabular}{@{}lrl@{}}
+\toprule
+\rowcolor{azulAS!15}
+\textbf{Medio} & \textbf{Sesgo} & \textbf{Interpretación} \\
+\midrule
+Brújula Digital & $-0.40$ & Encuadre crítico (énfasis en errores del equipo) \\
+\rowcolor{grisCelda}
+El Deber         & $-0.10$ & Ligeramente negativo \\
+Los Tiempos      & $+0.00$ & Neutral / equilibrado \\
+\midrule
+\rowcolor{grisCelda}
+\textbf{Divergencia} & $\mathbf{0.40}$ & $\max - \min = 0.00 - (-0.40)$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Resumen comparativo generado por el sistema}
+
+\textit{El partido entre Bolívar y Nacional Potosí fue cubierto por cuatro medios con enfoques distintos. Brújula Digital destacó los fallos defensivos del conjunto paceño, mientras que Los Tiempos mantuvo un tono descriptivo sin valoraciones. El Deber mencionó brevemente el resultado sin análisis adicional. La divergencia de 0.40 indica diferencias moderadas en el encuadre pero sin posiciones editoriales extremas.}
+
+% ============================================================
+\section{Limitaciones y Trabajo Futuro}
+% ============================================================
+
+\subsection*{Limitaciones actuales}
+
+\begin{itemize}[nosep]
+  \item \textbf{Cuota de Gemini gratuita}: con 20 solicitudes diarias para flash-lite, el análisis de tono de todos los artículos acumulados progresa lentamente. Una base de datos con cientos de artículos puede tardar semanas en tener análisis completo.
+
+  \item \textbf{La Razón solo por RSS}: al ser una SPA con JavaScript, no es posible hacer scraping directo del portal. El RSS introduce el retraso típico de este medio (generalmente horas, no semanas, pero inferior al scraping directo).
+
+  \item \textbf{Union-Find sin eliminación}: una vez que un artículo se asigna a un evento, no puede ser reasignado. Los clusters son permanentes; no existe mecanismo de corrección automática si dos eventos distintos se agrupan erróneamente.
+
+  \item \textbf{Baja cobertura cruzada}: la fragmentación regional de los medios bolivianos hace que muchos eventos solo sean cubiertos por uno o dos medios. El análisis de sesgo comparativo requiere mínimo dos medios con texto, lo que limita el número de eventos con datos de divergencia.
+
+  \item \textbf{Serie temporal}: la vista \texttt{/serie} solo es informativa con al menos dos semanas de datos continuos. En las primeras semanas de operación ofrece información muy limitada.
+\end{itemize}
+
+\subsection*{Trabajo futuro}
+
+\begin{itemize}[nosep]
+  \item \textbf{Reconocimiento de entidades nombradas (NER)}: identificar personas, organizaciones y lugares mencionados en los artículos para rastrear cómo distintos medios referencian a los mismos actores a lo largo del tiempo.
+
+  \item \textbf{Resúmenes automáticos de eventos}: generar un resumen unificado que combine la perspectiva de todos los medios que cubrieron el mismo evento, ofreciendo una visión sintética al lector.
+
+  \item \textbf{Notificaciones push}: alertar a usuarios suscritos cuando se detecten eventos de alta importancia (score $> 0.8$) o divergencias editoriales elevadas (divergencia $> 0.7$).
+
+  \item \textbf{Tendencia de sentimiento por medio}: gráfico temporal que muestre si el tono editorial de cada medio hacia ciertos temas ha cambiado a lo largo de semanas o meses.
+
+  \item \textbf{Expansión a más medios}: incorporar portales adicionales como Página Siete, Correo del Sur (Sucre) o ANF (Agencia de Noticias Fides) para aumentar la cobertura geográfica y temática.
+\end{itemize}
+
+\end{document}
