@@ -17,8 +17,16 @@ router = APIRouter()
 SYSTEM_PROMPT = """Eres un analista de medios bolivianos. Tu función es responder preguntas
 sobre cobertura noticiosa, sesgo editorial y tendencias en los 6 medios que monitoreamos:
 Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol, La Razón.
-Usa las herramientas disponibles para consultar datos reales antes de responder.
-Sé conciso, específico y responde siempre en español."""
+
+Reglas:
+- Usa SIEMPRE las herramientas antes de responder — nunca respondas solo con conocimiento previo.
+- Para preguntas sobre un tema concreto (política, economía, deportes, etc.) usa buscar_noticias
+  con palabras clave relevantes para obtener el contenido real de los artículos.
+- Para comparar cómo distintos medios cubrieron un evento, primero usa get_eventos para encontrar
+  el ID del evento y luego comparar_cobertura con ese ID.
+- Si una búsqueda devuelve pocos resultados, intenta con términos más cortos o sinónimos.
+- Cita los medios y títulos concretos que sustenten tu respuesta.
+- Sé conciso, específico y responde siempre en español."""
 
 TOOLS = types.Tool(function_declarations=[
     types.FunctionDeclaration(
@@ -70,27 +78,44 @@ def get_db():
 
 
 def _buscar_noticias(db: Session, query: str, medio: str = None, limit: int = 5) -> str:
-    q = db.query(Articulo)
-    terms = query.split()
-    for term in terms:
-        q = q.filter(or_(
-            Articulo.titulo.ilike(f"%{term}%"),
-            Articulo.cuerpo.ilike(f"%{term}%"),
-            Articulo.resumen_rss.ilike(f"%{term}%"),
-        ))
+    terms = [t for t in query.split() if len(t) > 2]
+    if not terms:
+        terms = query.split()
+
+    term_filters = [
+        or_(
+            Articulo.titulo.ilike(f"%{t}%"),
+            Articulo.cuerpo.ilike(f"%{t}%"),
+            Articulo.resumen_rss.ilike(f"%{t}%"),
+        )
+        for t in terms
+    ]
+    q = db.query(Articulo).filter(or_(*term_filters))
+
     if medio:
         m = db.query(Medio).filter(Medio.nombre.ilike(f"%{medio}%")).first()
         if m:
             q = q.filter(Articulo.medio_id == m.id)
-    arts = q.limit(limit).all()
+
+    arts = q.order_by(Articulo.fecha_publicacion.desc()).limit(limit).all()
     if not arts:
         return "No se encontraron artículos para esa búsqueda."
+
     resultados = []
     for a in arts:
         m = db.query(Medio).filter(Medio.id == a.medio_id).first()
         tono = (a.analisis or {}).get("tono", "sin análisis")
-        resultados.append(f"- [{m.nombre if m else '?'}] {a.titulo} (tono: {tono})")
-    return "\n".join(resultados)
+        extracto = ""
+        if a.cuerpo:
+            extracto = a.cuerpo[:300].replace("\n", " ").strip()
+        elif a.resumen_rss:
+            extracto = a.resumen_rss[:300].replace("\n", " ").strip()
+        fecha = a.fecha_publicacion.strftime("%d/%m/%Y") if a.fecha_publicacion else "?"
+        resultados.append(
+            f"[{m.nombre if m else '?'}] {fecha} — {a.titulo} (tono: {tono})\n"
+            f"  {extracto}"
+        )
+    return "\n\n".join(resultados)
 
 
 def _get_eventos(db: Session, min_importancia: float = 0.0, limit: int = 10) -> str:
