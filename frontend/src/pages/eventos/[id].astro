@@ -1,0 +1,150 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import SesgometroComparativo from '../../components/SesgometroComparativo'
+import { getEvento } from '../../lib/api'
+
+const { id } = Astro.params
+let evento = null
+try { evento = await getEvento(Number(id)) } catch {}
+
+const medios = evento ? Object.entries(evento.articulos_por_medio) : []
+
+const mediosSesgo = medios
+  .map(([nombre, arts]: [string, any[]]) => ({
+    medio: nombre,
+    sesgo: arts[0]?.analisis?.sesgo ?? null,
+    tono: arts[0]?.analisis?.tono ?? null,
+  }))
+  .filter(m => m.sesgo !== null)
+
+const resumen = medios.length > 0 ? (medios[0][1] as any[])[0]?.analisis?.resumen_comparativo : null
+const pct = evento ? Math.round(evento.score_importancia * 100) : 0
+
+const TONO_ES: Record<string, string> = {
+  positivo: 'positivo', negativo: 'negativo', neutral: 'neutral', sin_texto: 'sin texto'
+}
+const TONO_COLOR: Record<string, string> = {
+  positivo: '#1a4a1a', negativo: '#8b1a1a', neutral: '#5a4a32', sin_texto: '#9a8a72'
+}
+---
+<Layout title={evento?.titulo ?? 'Evento'}>
+  <div style="max-width:56rem; margin:0 auto; padding:2rem;">
+
+    {!evento ? (
+      <p style="font-style:italic; color:var(--ink-light);">Evento no encontrado.</p>
+    ) : (
+      <div>
+        <a href="/" style="font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light); text-decoration:none;">← Portada</a>
+
+        <!-- Cabecera del evento -->
+        <div style="border-top:4px solid var(--ink); border-bottom:1px solid var(--border-dark); margin:0.75rem 0 1.5rem; padding:1rem 0 1rem;">
+          <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--red); margin-bottom:0.4rem;">
+            {medios.length} {medios.length === 1 ? 'medio' : 'medios'} · {new Date(evento.fecha_deteccion).toLocaleDateString('es-BO', { timeZone: 'America/La_Paz', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+          <h1 style="font-family:'Playfair Display',Georgia,serif; font-size:2rem; font-weight:700; line-height:1.2; margin:0 0 1rem;">
+            {evento.titulo}
+          </h1>
+
+          <!-- Barra de importancia estilo periódico -->
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-light);">Relevancia</span>
+            <div style="flex:1; height:6px; background:var(--border); position:relative; max-width:200px;">
+              <div style={`height:100%; background:${pct >= 60 ? '#8b1a1a' : pct >= 30 ? '#8a7a62' : '#c8b89a'}; width:${pct}%;`}></div>
+            </div>
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light);">{pct}%</span>
+          </div>
+        </div>
+
+        <!-- Temas -->
+        {evento.temas && evento.temas.length > 0 && (
+          <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.78rem; color:var(--ink-light); font-style:italic; margin-bottom:1.25rem; border-left:2px solid var(--border); padding-left:0.75rem;">
+            Temas: {evento.temas.join(' · ')}
+          </p>
+        )}
+
+        <!-- Sesgómetro comparativo -->
+        {mediosSesgo.length >= 2 && (
+          <div style="border:1px solid var(--border); padding:1rem 1.25rem; margin-bottom:1.5rem;">
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); margin-bottom:0.5rem;">Posicionamiento editorial</p>
+            <SesgometroComparativo medios={mediosSesgo} client:load />
+          </div>
+        )}
+
+        <!-- Resumen comparativo -->
+        {resumen && (
+          <div style="border-left:4px solid var(--ink); padding-left:1rem; margin-bottom:1.75rem;">
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); margin-bottom:0.35rem;">Análisis comparativo</p>
+            <p style="font-family:Georgia,serif; font-size:0.9rem; line-height:1.65; font-style:italic;">{resumen}</p>
+          </div>
+        )}
+
+        <!-- Cobertura por medio -->
+        <div style="border-top:2px solid var(--border-dark); padding-top:1rem;">
+          <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:1.25rem;">
+            Cobertura por medio
+          </h2>
+
+          {medios.map(([nombre, arts]: [string, any[]]) => {
+            const art = arts[0]
+            const analisis = art?.analisis
+            const sesgo: number | null = analisis?.sesgo ?? null
+            const tonoRaw: string = analisis?.tono ?? 'sin_texto'
+            const tono: string | null = (tonoRaw && tonoRaw !== 'sin_texto') ? tonoRaw : null
+            const extracto: string = art?.cuerpo ? art.cuerpo.slice(0, 320) : ''
+            const tonoColor = tono ? (TONO_COLOR[tono] ?? '#5a4a32') : '#5a4a32'
+            const tonoLabel = tono ? (TONO_ES[tono] ?? tono) : null
+
+            return (
+              <div style="border-bottom:1px solid var(--border); padding:1.25rem 0; display:grid; grid-template-columns:8rem 1fr; gap:1.25rem;">
+                <!-- Columna izquierda: medio + indicadores -->
+                <div>
+                  <p style="font-family:'Playfair Display',Georgia,serif; font-weight:700; font-size:0.9rem; margin-bottom:0.35rem;">{nombre}</p>
+
+                  <!-- Badge de tono (solo si hay análisis real) -->
+                  {tono && tonoLabel && (
+                    <div style={`display:inline-block; border:1px solid ${tonoColor}; padding:0.1rem 0.4rem; margin-bottom:0.4rem;`}>
+                      <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:${tonoColor};`}>{tonoLabel}</span>
+                    </div>
+                  )}
+
+                  <!-- Barra de sesgo -->
+                  {sesgo !== null && (
+                    <div style="margin-top:0.4rem;">
+                      <div style="height:4px; background:var(--border); position:relative; margin-bottom:0.2rem;">
+                        <div style="position:absolute; left:50%; top:-2px; width:1px; height:8px; background:var(--border-dark);"></div>
+                        <div style={`position:absolute; height:4px; background:${sesgo < 0 ? '#8b1a1a' : '#1a4a1a'}; ${sesgo < 0 ? `right:${50}%; width:${Math.abs(sesgo) * 50}%;` : `left:50%; width:${sesgo * 50}%;`}`}></div>
+                      </div>
+                      <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.65rem; color:var(--ink-light);">
+                        {sesgo > 0 ? '+' : ''}{sesgo.toFixed(2)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <!-- Columna derecha: artículo -->
+                <div>
+                  {art && (
+                    <a href={art.url} target="_blank" rel="noreferrer"
+                      style="font-family:'Playfair Display',Georgia,serif; font-weight:600; font-size:0.95rem; text-decoration:underline; text-underline-offset:3px; display:block; margin-bottom:0.5rem; color:var(--ink); line-height:1.35;">
+                      {art.titulo}
+                    </a>
+                  )}
+                  {extracto && (
+                    <p style="font-family:Georgia,serif; font-size:0.82rem; line-height:1.6; color:var(--ink-light);">
+                      {extracto}{art?.cuerpo && art.cuerpo.length > 320 ? '…' : ''}
+                    </p>
+                  )}
+                  {analisis?.sesgo_descripcion && (
+                    <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.78rem; color:var(--ink-light); margin-top:0.5rem; border-left:2px solid var(--border); padding-left:0.6rem;">
+                      {analisis.sesgo_descripcion}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>

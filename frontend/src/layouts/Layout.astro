@@ -1,0 +1,49 @@
+---
+import '../styles/global.css'
+interface Props { title: string }
+const { title } = Astro.props
+
+const fecha = new Date().toLocaleDateString('es-BO', {
+  timeZone: 'America/La_Paz', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+})
+---
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title} — El Observador Digital</title>
+  </head>
+  <body>
+
+    <!-- Masthead -->
+    <header style="border-bottom: 3px double var(--border-dark); padding: 1rem 2rem 0.75rem;">
+      <div style="text-align:center; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; margin-bottom: 0.5rem;">
+        <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light); letter-spacing:0.15em; text-transform:uppercase;">{fecha}</p>
+        <h1 style="font-family:'Playfair Display',Georgia,serif; font-size:2.8rem; font-weight:700; letter-spacing:-0.02em; line-height:1; margin:0.25rem 0;">
+          El Observador Digital
+        </h1>
+        <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.8rem; color:var(--ink-light);">
+          Análisis comparativo de medios bolivianos · 6 fuentes monitoreadas
+        </p>
+      </div>
+      <nav style="display:flex; gap:2rem; justify-content:center; font-family:'IM Fell English',Georgia,serif; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase; padding-top:0.4rem;">
+        <a href="/" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Portada</a>
+        <a href="/eventos" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Eventos</a>
+        <a href="/sesgos" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Sesgos</a>
+        <a href="/timeline" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Cronología</a>
+        <a href="/serie" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Serie</a>
+        <a href="/medios" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Medios</a>
+      </nav>
+    </header>
+
+    <main>
+      <slot />
+    </main>
+
+    <footer style="border-top: 3px double var(--border-dark); padding: 1rem 2rem; text-align:center; font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light); margin-top:3rem;">
+      El Observador Digital · RSS + Scraping · Gemini 2.5 · KeyBERT · Bolivia
+    </footer>
+
+  </body>
+</html>

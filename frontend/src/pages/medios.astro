@@ -1,0 +1,39 @@
+---
+import Layout from '../layouts/Layout.astro'
+import { getMedios } from '../lib/api'
+
+let medios = []
+try { medios = await getMedios() } catch {}
+---
+<Layout title="Medios">
+  <div style="max-width:52rem; margin:0 auto; padding:2rem;">
+
+    <div style="border-bottom:3px double var(--border-dark); margin-bottom:1.5rem; padding-bottom:0.75rem;">
+      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.6rem; font-weight:700;">Medios monitoreados</h2>
+      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.85rem; color:var(--ink-light); margin-top:0.2rem;">
+        6 fuentes bolivianas · scraping diario
+      </p>
+    </div>
+
+    <table style="width:100%; border-collapse:collapse; font-family:Georgia,serif; font-size:0.875rem;">
+      <thead>
+        <tr style="border-bottom:2px solid var(--border-dark);">
+          <th style="text-align:left; padding:0.5rem 1rem 0.5rem 0; font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); font-weight:normal;">Medio</th>
+          <th style="text-align:left; padding:0.5rem 1rem 0.5rem 0; font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); font-weight:normal;">Región</th>
+          <th style="text-align:left; padding:0.5rem 1rem 0.5rem 0; font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); font-weight:normal;">Línea editorial</th>
+          <th style="text-align:right; padding:0.5rem 0; font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); font-weight:normal;">Artículos</th>
+        </tr>
+      </thead>
+      <tbody>
+        {medios.map(m => (
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:0.7rem 1rem 0.7rem 0; font-family:'Playfair Display',Georgia,serif; font-weight:600;">{m.nombre}</td>
+            <td style="padding:0.7rem 1rem 0.7rem 0; color:var(--ink-light); text-transform:capitalize;">{m.region}</td>
+            <td style="padding:0.7rem 1rem 0.7rem 0; color:var(--ink-light); font-style:italic;">{m.linea_editorial}</td>
+            <td style="padding:0.7rem 0; text-align:right; font-family:'IM Fell English',Georgia,serif;">{m.total_articulos}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+</Layout>

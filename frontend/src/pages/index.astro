@@ -1,0 +1,71 @@
+---
+import Layout from '../layouts/Layout.astro'
+import EventoCard from '../components/EventoCard'
+import ChatWidget from '../components/ChatWidget'
+import { getEventos } from '../lib/api'
+import { detectarCategoria, CAT_COLOR } from '../lib/categorias'
+
+let eventos = []
+try { eventos = await getEventos(80) } catch {}
+
+// Agrupar por categoría
+const porCategoria: Record<string, typeof eventos> = {}
+for (const ev of eventos) {
+  const cat = detectarCategoria(ev.temas ?? [])
+  if (!porCategoria[cat]) porCategoria[cat] = []
+  porCategoria[cat].push(ev)
+}
+
+// Ordenar categorías por cantidad de eventos
+const categorias = Object.entries(porCategoria).sort((a, b) => b[1].length - a[1].length)
+const destacado = eventos[0]
+---
+<Layout title="Portada">
+  <div style="display:flex; height:calc(100vh - 148px);">
+
+    <!-- Columna principal -->
+    <div style="flex:1; overflow-y:auto; padding:1.5rem 2rem; border-right:1px solid var(--border);">
+
+      <!-- Evento destacado -->
+      {destacado && (
+        <div style="border-top:4px solid var(--ink); border-bottom:2px solid var(--border); margin-bottom:1.5rem; padding:1rem 0 1.25rem;">
+          <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.12em; color:${CAT_COLOR[detectarCategoria(destacado.temas ?? [])]};`}>
+            {detectarCategoria(destacado.temas ?? [])} · Evento principal
+          </span>
+          <a href={`/eventos/${destacado.id}`} style="text-decoration:none; color:inherit; display:block; margin-top:0.3rem;">
+            <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.7rem; font-weight:700; line-height:1.2; margin-bottom:0.5rem;">
+              {destacado.titulo}
+            </h2>
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.8rem; color:var(--ink-light);">
+              {Object.keys(destacado.articulos_por_medio).join(' · ')} · {Math.round(destacado.score_importancia * 100)}% importancia
+            </p>
+          </a>
+        </div>
+      )}
+
+      <!-- Secciones por categoría -->
+      {categorias.map(([cat, evs]) => (
+        <div style="margin-bottom:2rem;">
+          <div style={`border-bottom:2px solid ${CAT_COLOR[cat]}; margin-bottom:0.75rem; padding-bottom:0.3rem; display:flex; align-items:baseline; gap:1rem;`}>
+            <h3 style={`font-family:'IM Fell English',Georgia,serif; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.15em; color:${CAT_COLOR[cat]};`}>
+              {cat}
+            </h3>
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.65rem; color:var(--ink-light);">{evs.length} eventos</span>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:0.75rem;">
+            {evs.slice(0, 5).map(ev => (
+              <EventoCard evento={ev} client:load />
+            ))}
+          </div>
+        </div>
+      ))}
+
+    </div>
+
+    <!-- Panel chat -->
+    <div style="width:22rem; display:flex; flex-direction:column; padding:1rem;">
+      <ChatWidget client:load />
+    </div>
+
+  </div>
+</Layout>

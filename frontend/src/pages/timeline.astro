@@ -1,0 +1,143 @@
+---
+import Layout from '../layouts/Layout.astro'
+import { getNoticias, getMedios } from '../lib/api'
+import { detectarCategoria, CAT_COLOR } from '../lib/categorias'
+
+const catParam = Astro.url.searchParams.get('categoria') || ''
+const medioParam = Astro.url.searchParams.get('medio') || ''
+
+let articulos = []
+let medios = []
+try {
+  articulos = await getNoticias({ limit: 80, orden: 'fecha', medio_nombre: medioParam || undefined })
+  medios = await getMedios()
+} catch {}
+
+// Calcular categoría de cada artículo basándose en el título
+// (los artículos no tienen temas, inferimos de palabras clave del título)
+function categoriaDeTitulo(titulo: string): string {
+  return detectarCategoria([titulo.toLowerCase()])
+}
+
+// Estadísticas por categoría
+const conteos: Record<string, number> = {}
+for (const a of articulos) {
+  const cat = categoriaDeTitulo(a.titulo)
+  conteos[cat] = (conteos[cat] ?? 0) + 1
+}
+const maxConteo = Math.max(...Object.values(conteos), 1)
+const statsOrdenadas = Object.entries(conteos).sort((a, b) => b[1] - a[1])
+
+// Filtrar por categoría si aplica
+const articulosFiltrados = catParam
+  ? articulos.filter(a => categoriaDeTitulo(a.titulo) === catParam)
+  : articulos
+
+const TONO_DOT: Record<string, string> = {
+  positivo: '#1a4a1a',
+  negativo: '#8b1a1a',
+  neutral: '#8a7a62',
+}
+
+function formatFecha(fecha: string | null) {
+  if (!fecha) return ''
+  const d = new Date(fecha)
+  return d.toLocaleDateString('es-BO', { timeZone: 'America/La_Paz', day: 'numeric', month: 'short' }) +
+    ' · ' + d.toLocaleTimeString('es-BO', { timeZone: 'America/La_Paz', hour: '2-digit', minute: '2-digit' })
+}
+---
+<Layout title="Cronología">
+  <div style="max-width:56rem; margin:0 auto; padding:2rem;">
+
+    <div style="border-bottom:3px double var(--border-dark); margin-bottom:1.5rem; padding-bottom:0.75rem;">
+      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.6rem; font-weight:700;">Cronología</h2>
+      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.85rem; color:var(--ink-light); margin-top:0.2rem;">
+        {articulos.length} artículos · ordenados por fecha de publicación
+      </p>
+    </div>
+
+    <!-- Gráfico de barras por categoría -->
+    <div style="border:1px solid var(--border); padding:1rem 1.25rem; margin-bottom:1.5rem;">
+      <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-light); margin-bottom:0.75rem;">Distribución por temática</p>
+      <div style="display:flex; flex-direction:column; gap:0.4rem;">
+        {statsOrdenadas.map(([cat, n]) => (
+          <div style="display:grid; grid-template-columns:7rem 1fr 2rem; align-items:center; gap:0.5rem;">
+            <a href={`/timeline?categoria=${encodeURIComponent(cat)}${medioParam ? '&medio='+encodeURIComponent(medioParam) : ''}`}
+              style={`font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em; text-decoration:none; color:${catParam === cat ? CAT_COLOR[cat] : 'var(--ink-light)'}; font-weight:${catParam === cat ? '700' : 'normal'};`}>
+              {cat}
+            </a>
+            <div style="height:8px; background:var(--border); position:relative;">
+              <div style={`height:100%; background:${CAT_COLOR[cat] ?? 'var(--border-dark)'}; width:${(n / maxConteo) * 100}%; opacity:${catParam === cat ? '1' : '0.6'};`}></div>
+            </div>
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; color:var(--ink-light); text-align:right;">{n}</span>
+          </div>
+        ))}
+      </div>
+      {catParam && (
+        <a href={`/timeline${medioParam ? '?medio='+encodeURIComponent(medioParam) : ''}`}
+          style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light); text-decoration:underline; display:block; margin-top:0.6rem;">
+          × Ver todas las categorías
+        </a>
+      )}
+    </div>
+
+    <!-- Filtros por medio -->
+    <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:1.25rem;">
+      <a href={`/timeline${catParam ? '?categoria='+encodeURIComponent(catParam) : ''}`}
+        style={`font-family:'IM Fell English',Georgia,serif; font-size:0.72rem; padding:0.2rem 0.6rem; border:1px solid var(--border-dark); text-decoration:none; background:${!medioParam ? 'var(--ink)' : 'transparent'}; color:${!medioParam ? 'var(--paper)' : 'var(--ink)'};`}>
+        Todos
+      </a>
+      {medios.map(m => (
+        <a href={`/timeline?medio=${encodeURIComponent(m.nombre)}${catParam ? '&categoria='+encodeURIComponent(catParam) : ''}`}
+          style={`font-family:'IM Fell English',Georgia,serif; font-size:0.72rem; padding:0.2rem 0.6rem; border:1px solid var(--border-dark); text-decoration:none; background:${medioParam === m.nombre ? 'var(--ink)' : 'transparent'}; color:${medioParam === m.nombre ? 'var(--paper)' : 'var(--ink)'};`}>
+          {m.nombre}
+        </a>
+      ))}
+    </div>
+
+    <!-- Lista de artículos -->
+    {articulosFiltrados.length === 0 ? (
+      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; color:var(--ink-light);">Sin artículos.</p>
+    ) : (
+      <div>
+        {articulosFiltrados.map((a, i) => {
+          const cat = categoriaDeTitulo(a.titulo)
+          const catColor = CAT_COLOR[cat] ?? 'var(--ink-light)'
+          const tono = a.analisis?.tono
+          const tonoDot = tono && tono !== 'sin_texto' ? TONO_DOT[tono] : null
+
+          return (
+            <div style={`display:grid; grid-template-columns:7.5rem 1fr; gap:1rem; border-bottom:1px solid var(--border); padding:0.65rem 0; ${i === 0 ? 'border-top:1px solid var(--border);' : ''}`}>
+              <!-- Columna izquierda: fecha + medio + categoría -->
+              <div>
+                <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light); line-height:1.5;">
+                  {formatFecha(a.fecha_publicacion)}
+                </p>
+                {a.medio && (
+                  <p style={`font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; color:${catColor}; margin-top:0.1rem;`}>
+                    {a.medio.nombre}
+                  </p>
+                )}
+                <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.06em; color:${catColor}; opacity:0.7;`}>
+                  {cat}
+                </span>
+              </div>
+
+              <!-- Columna derecha: título + indicador de tono -->
+              <div style="display:flex; align-items:flex-start; gap:0.5rem;">
+                {tonoDot && (
+                  <div style={`flex-shrink:0; width:7px; height:7px; border-radius:50%; background:${tonoDot}; margin-top:0.35rem;`}></div>
+                )}
+                <a href={a.url} target="_blank" rel="noreferrer"
+                  style="font-family:Georgia,serif; font-size:0.87rem; line-height:1.4; color:var(--ink); text-decoration:underline; text-underline-offset:2px; text-decoration-color:var(--border);">
+                  {a.titulo}
+                </a>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )}
+
+  </div>
+</Layout>

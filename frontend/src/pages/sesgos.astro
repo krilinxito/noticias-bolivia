@@ -1,0 +1,22 @@
+---
+import Layout from '../layouts/Layout.astro'
+import SesgosLista from '../components/SesgosLista'
+import { getSesgos } from '../lib/api'
+
+let eventos = []
+try { eventos = await getSesgos(30) } catch {}
+---
+<Layout title="Sesgos">
+  <div style="max-width:52rem; margin:0 auto; padding:2rem;">
+
+    <div style="border-bottom:3px double var(--border-dark); margin-bottom:1.5rem; padding-bottom:0.75rem;">
+      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.6rem; font-weight:700;">Divergencia editorial</h2>
+      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.85rem; color:var(--ink-light); margin-top:0.2rem;">
+        Eventos cubiertos por múltiples medios, ordenados por diferencia de posicionamiento
+      </p>
+    </div>
+
+    <SesgosLista eventos={eventos} client:load />
+
+  </div>
+</Layout>

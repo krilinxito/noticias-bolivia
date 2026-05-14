@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IM+Fell+English:ital@0;1&display=swap');
+@import "tailwindcss";
+
+:root {
+  --paper: #f2ede0;
+  --ink: #1a1209;
+  --ink-light: #5a4a32;
+  --red: #8b1a1a;
+  --border: #c8b89a;
+  --border-dark: #8a7a62;
+}
+
+body {
+  background-color: var(--paper);
+  /* Líneas horizontales sutiles + grano diagonal: simula papel prensa */
+  background-image:
+    repeating-linear-gradient(
+      180deg,
+      transparent 0px,
+      transparent 31px,
+      rgba(160, 140, 100, 0.09) 31px,
+      rgba(160, 140, 100, 0.09) 32px
+    ),
+    repeating-linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.018) 0px,
+      rgba(0, 0, 0, 0.018) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  min-height: 100vh;
+}
+
+a { color: var(--ink); }
