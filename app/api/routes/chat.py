@@ -205,7 +205,11 @@ class ChatRequest(BaseModel):
 
 @router.post("")
 def chat(req: ChatRequest, db: Session = Depends(get_db)):
-    client = _get_client()
+    try:
+        client = _get_client()
+    except Exception as e:
+        logger.error(f"Chat: error al inicializar cliente Gemini: {e}")
+        return {"respuesta": "El servicio de IA no está disponible en este momento. Verifica la configuración de la API key.", "tools_usadas": []}
 
     contents = []
     for h in req.historial:
@@ -222,20 +226,21 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     tools_usadas = []
     MAX_ROUNDS = 3
 
-    for _ in range(MAX_ROUNDS):
-        response = client.models.generate_content(
-            model=MODEL_FLASH,
-            contents=contents,
-            config=config,
-        )
+    try:
+        for _ in range(MAX_ROUNDS):
+            response = client.models.generate_content(
+                model=MODEL_FLASH,
+                contents=contents,
+                config=config,
+            )
 
-        candidate = response.candidates[0].content
-        function_calls = [p for p in candidate.parts if p.function_call]
+            candidate = response.candidates[0].content
+            function_calls = [p for p in candidate.parts if p.function_call]
 
-        if not function_calls:
-            break
+            if not function_calls:
+                break
 
-        contents.append(candidate)
+            contents.append(candidate)
 
         function_parts = []
         for p in function_calls:
@@ -258,6 +263,19 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             ))
 
         contents.append(types.Content(role="user", parts=function_parts))
+
+    except Exception as e:
+        logger.error(f"Chat: error Gemini: {e}")
+        codigo = getattr(e, "status_code", None)
+        if codigo == 503:
+            msg = "El servicio de IA está saturado en este momento. Intenta de nuevo en unos segundos."
+        elif codigo == 429:
+            msg = "Se alcanzó el límite de la API de Gemini. Intenta de nuevo en unos minutos."
+        elif codigo == 400:
+            msg = "API key de Gemini no válida. Contacta al administrador."
+        else:
+            msg = f"Error al procesar tu consulta ({codigo or type(e).__name__}). Intenta de nuevo."
+        return {"respuesta": msg, "tools_usadas": tools_usadas}
 
     respuesta = response.text or "No pude generar una respuesta."
     return {"respuesta": respuesta, "tools_usadas": tools_usadas}
