@@ -1,4 +1,4 @@
-import type { ChatMessage, Evento, Medio, Articulo } from '../types'
+import type { ChatMessage, Evento, Medio, Articulo, CardChat } from '../types'
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -37,7 +37,7 @@ export interface EventoSesgo {
 export const getSesgos = (limit = 30): Promise<EventoSesgo[]> =>
   fetch(`${API_URL}/sesgos?limit=${limit}`).then(r => r.json())
 
-export const chat = (mensaje: string, historial: ChatMessage[]): Promise<{ respuesta: string; tools_usadas: string[] }> =>
+export const chat = (mensaje: string, historial: ChatMessage[]): Promise<{ respuesta: string; tools_usadas: string[]; cards: CardChat[] }> =>
   fetch(`${API_URL}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

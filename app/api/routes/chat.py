@@ -77,7 +77,7 @@ def get_db():
         yield db
 
 
-def _buscar_noticias(db: Session, query: str, medio: str = None, limit: int = 5) -> str:
+def _buscar_noticias(db: Session, query: str, medio: str = None, limit: int = 5):
     terms = [t for t in query.split() if len(t) > 2]
     if not terms:
         terms = query.split()
@@ -93,17 +93,19 @@ def _buscar_noticias(db: Session, query: str, medio: str = None, limit: int = 5)
     q = db.query(Articulo).filter(or_(*term_filters))
 
     if medio:
-        m = db.query(Medio).filter(Medio.nombre.ilike(f"%{medio}%")).first()
-        if m:
-            q = q.filter(Articulo.medio_id == m.id)
+        m_obj = db.query(Medio).filter(Medio.nombre.ilike(f"%{medio}%")).first()
+        if m_obj:
+            q = q.filter(Articulo.medio_id == m_obj.id)
 
     arts = q.order_by(Articulo.fecha_publicacion.desc()).limit(limit).all()
     if not arts:
-        return "No se encontraron artículos para esa búsqueda."
+        return "No se encontraron artículos para esa búsqueda.", []
 
-    resultados = []
+    lineas = []
+    cards = []
     for a in arts:
-        m = db.query(Medio).filter(Medio.id == a.medio_id).first()
+        m_obj = db.query(Medio).filter(Medio.id == a.medio_id).first()
+        nombre_medio = m_obj.nombre if m_obj else "?"
         tono = (a.analisis or {}).get("tono", "sin análisis")
         extracto = ""
         if a.cuerpo:
@@ -111,14 +113,22 @@ def _buscar_noticias(db: Session, query: str, medio: str = None, limit: int = 5)
         elif a.resumen_rss:
             extracto = a.resumen_rss[:300].replace("\n", " ").strip()
         fecha = a.fecha_publicacion.strftime("%d/%m/%Y") if a.fecha_publicacion else "?"
-        resultados.append(
-            f"[{m.nombre if m else '?'}] {fecha} — {a.titulo} (tono: {tono})\n"
-            f"  {extracto}"
+        lineas.append(
+            f"[{nombre_medio}] {fecha} — {a.titulo} (tono: {tono})\n  {extracto}"
         )
-    return "\n\n".join(resultados)
+        cards.append({
+            "tipo": "articulo",
+            "id": a.id,
+            "titulo": a.titulo,
+            "url": a.url,
+            "medio": nombre_medio,
+            "imagen_url": a.imagen_url,
+            "tono": tono,
+        })
+    return "\n\n".join(lineas), cards
 
 
-def _get_eventos(db: Session, min_importancia: float = 0.0, limit: int = 10) -> str:
+def _get_eventos(db: Session, min_importancia: float = 0.0, limit: int = 10):
     eventos = (
         db.query(Evento)
         .filter(Evento.score_importancia >= min_importancia)
@@ -127,31 +137,43 @@ def _get_eventos(db: Session, min_importancia: float = 0.0, limit: int = 10) -> 
         .all()
     )
     if not eventos:
-        return "No hay eventos que cumplan los criterios."
-    resultados = []
+        return "No hay eventos que cumplan los criterios.", []
+
+    lineas = []
+    cards = []
     for ev in eventos:
         arts = db.query(Articulo).filter(Articulo.evento_id == ev.id).all()
-        medios_nombres = list({
-            db.query(Medio).filter(Medio.id == a.medio_id).first().nombre
+        medios_objs = {
+            a.medio_id: db.query(Medio).filter(Medio.id == a.medio_id).first()
             for a in arts
-            if db.query(Medio).filter(Medio.id == a.medio_id).first()
-        })
+        }
+        medios_nombres = list({m.nombre for m in medios_objs.values() if m})
         temas = ", ".join(ev.temas or []) or "sin temas"
-        resultados.append(
+        lineas.append(
             f"- ID {ev.id} | importancia {ev.score_importancia:.2f} | {ev.titulo[:60]}\n"
             f"  Medios: {', '.join(medios_nombres)} | Temas: {temas}"
         )
-    return "\n".join(resultados)
+        cards.append({
+            "tipo": "evento",
+            "id": ev.id,
+            "titulo": ev.titulo,
+            "medios": medios_nombres,
+            "score_importancia": ev.score_importancia,
+            "imagen_url": next((a.imagen_url for a in arts if a.imagen_url), None),
+            "fecha_deteccion": ev.fecha_deteccion.isoformat() + "Z" if ev.fecha_deteccion else None,
+        })
+    return "\n".join(lineas), cards
 
 
-def _comparar_cobertura(db: Session, evento_id: int) -> str:
+def _comparar_cobertura(db: Session, evento_id: int):
     ev = db.query(Evento).filter(Evento.id == evento_id).first()
     if not ev:
-        return f"Evento {evento_id} no encontrado."
+        return f"Evento {evento_id} no encontrado.", []
     arts = db.query(Articulo).filter(Articulo.evento_id == evento_id).all()
     if not arts:
-        return "El evento no tiene artículos asociados."
-    resultados = [f"Evento: {ev.titulo}\n"]
+        return "El evento no tiene artículos asociados.", []
+    lineas = [f"Evento: {ev.titulo}\n"]
+    cards = []
     for a in arts:
         m = db.query(Medio).filter(Medio.id == a.medio_id).first()
         analisis = a.analisis or {}
@@ -159,17 +181,25 @@ def _comparar_cobertura(db: Session, evento_id: int) -> str:
         sesgo = analisis.get("sesgo")
         sesgo_str = f"{sesgo:+.2f}" if sesgo is not None else "no calculado"
         desc = analisis.get("sesgo_descripcion", "")[:100]
-        resultados.append(
-            f"- {m.nombre if m else '?'}: tono={tono}, sesgo={sesgo_str}\n"
-            f"  {desc}"
+        lineas.append(
+            f"- {m.nombre if m else '?'}: tono={tono}, sesgo={sesgo_str}\n  {desc}"
         )
+        cards.append({
+            "tipo": "articulo",
+            "id": a.id,
+            "titulo": a.titulo,
+            "url": a.url,
+            "medio": m.nombre if m else "?",
+            "imagen_url": a.imagen_url,
+            "tono": tono,
+        })
     resumen = (arts[0].analisis or {}).get("resumen_comparativo", "")
     if resumen:
-        resultados.append(f"\nResumen comparativo: {resumen}")
-    return "\n".join(resultados)
+        lineas.append(f"\nResumen comparativo: {resumen}")
+    return "\n".join(lineas), cards
 
 
-def _resumen_estadisticas(db: Session) -> str:
+def _resumen_estadisticas(db: Session):
     total = db.query(func.count(Articulo.id)).scalar()
     con_analisis = db.query(func.count(Articulo.id)).filter(Articulo.analisis != None).scalar()
     total_eventos = db.query(func.count(Evento.id)).scalar()
@@ -178,11 +208,12 @@ def _resumen_estadisticas(db: Session) -> str:
     for m in medios:
         n = db.query(func.count(Articulo.id)).filter(Articulo.medio_id == m.id).scalar()
         dist.append(f"  {m.nombre}: {n} artículos")
-    return (
+    texto = (
         f"Total artículos: {total} ({con_analisis} con análisis, {total - con_analisis} sin)\n"
         f"Eventos detectados: {total_eventos}\n"
         f"Distribución por medio:\n" + "\n".join(dist)
     )
+    return texto, []
 
 
 TOOL_HANDLERS = {
@@ -224,6 +255,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     )
 
     tools_usadas = []
+    todas_cards = []
     MAX_ROUNDS = 3
 
     try:
@@ -251,14 +283,15 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             tools_usadas.append(nombre)
 
             try:
-                resultado = TOOL_HANDLERS[nombre](db, args)
+                texto_resultado, cards = TOOL_HANDLERS[nombre](db, args)
+                todas_cards.extend(cards)
             except Exception as e:
-                resultado = f"Error ejecutando {nombre}: {e}"
+                texto_resultado = f"Error ejecutando {nombre}: {e}"
 
             function_parts.append(types.Part(
                 function_response=types.FunctionResponse(
                     name=nombre,
-                    response={"result": resultado},
+                    response={"result": texto_resultado},
                 )
             ))
 
@@ -275,7 +308,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             msg = "API key de Gemini no válida. Contacta al administrador."
         else:
             msg = f"Error al procesar tu consulta ({codigo or type(e).__name__}). Intenta de nuevo."
-        return {"respuesta": msg, "tools_usadas": tools_usadas}
+        return {"respuesta": msg, "tools_usadas": tools_usadas, "cards": []}
 
     respuesta = response.text or "No pude generar una respuesta."
-    return {"respuesta": respuesta, "tools_usadas": tools_usadas}
+    return {"respuesta": respuesta, "tools_usadas": tools_usadas, "cards": todas_cards}

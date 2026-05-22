@@ -34,13 +34,16 @@ def _serializar_evento(evento, medios):
             "url": a.url,
             "fecha_publicacion": _fmt_bol(a.fecha_publicacion),
             "analisis": a.analisis,
+            "imagen_url": a.imagen_url,
         })
+    imagen_url = next((a.imagen_url for a in evento.articulos if a.imagen_url), None)
     return {
         "id": evento.id,
         "titulo": evento.titulo,
         "fecha_deteccion": _fmt_utc(evento.fecha_deteccion),
         "score_importancia": evento.score_importancia,
         "temas": evento.temas,
+        "imagen_url": imagen_url,
         "articulos_por_medio": por_medio,
     }
 

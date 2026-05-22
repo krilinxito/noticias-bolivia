@@ -147,11 +147,11 @@
 \section{Resumen Ejecutivo}
 % ============================================================
 
-\textbf{El Observador Digital} es una plataforma automática de monitoreo y análisis comparativo de medios de comunicación bolivianos. El sistema vigila continuamente seis portales de noticias --- Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol y La Razón --- recolectando artículos nuevos cada 30 minutos y procesándolos con técnicas de inteligencia artificial local y en la nube.
+\textbf{El Observador Digital} es una plataforma automática de monitoreo y análisis comparativo de medios de comunicación bolivianos. El sistema vigila seis portales de noticias --- Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol y La Razón --- recolectando artículos nuevos \textbf{una vez al día} y procesándolos con técnicas de inteligencia artificial local y en la nube.
 
-El flujo de trabajo central es el siguiente: los artículos recién descargados se convierten en vectores numéricos mediante un modelo de lenguaje local (\textit{MiniLM-L12-v2}), se calcula la similitud entre ellos y se agrupan automáticamente aquellos que tratan el mismo evento noticioso. Posteriormente, la API de Gemini analiza el tono editorial de cada artículo y detecta diferencias de encuadre entre los distintos medios que cubren el mismo hecho.
+El flujo de trabajo central es el siguiente: los artículos recién descargados se convierten en vectores numéricos mediante un modelo de lenguaje local (\textit{MiniLM-L12-v2}), se calcula la similitud entre ellos y se agrupan automáticamente aquellos que tratan el mismo evento noticioso. Solo se forma un evento si al menos \textbf{dos medios distintos} cubren el mismo hecho --- esto garantiza que el sistema detecta únicamente noticias con cobertura cruzada real, descartando artículos aislados. Posteriormente, la API de Gemini analiza el tono editorial de cada artículo y detecta diferencias de encuadre entre los distintos medios que cubren el mismo hecho.
 
-Los resultados son accesibles a través de una interfaz web con cinco vistas temáticas: portada, cronología de eventos, visualización de sesgos editoriales, cronología de artículos y serie temporal. Adicionalmente, el sistema ofrece un asistente de inteligencia artificial conversacional capaz de responder preguntas sobre los datos monitoreados en lenguaje natural.
+Los resultados son accesibles a través de una interfaz web con estética de periódico clásico: portada con tarjetas visuales (incluida la imagen de portada de cada evento), cronología de eventos con gráfico de dispersión por sesgo e importancia, y visualización detallada de sesgos editoriales. Adicionalmente, el sistema ofrece un asistente de inteligencia artificial conversacional flotante que responde preguntas sobre los datos monitoreados en lenguaje natural y devuelve tarjetas con los eventos o artículos más relevantes para cada consulta.
 
 La plataforma corre en un servidor VPS con costes de infraestructura mínimos: el modelo de \textit{embeddings} funciona en CPU sin costo alguno, y la API de Gemini se usa en el nivel gratuito.
 
@@ -205,7 +205,7 @@ El sistema está organizado en cuatro capas funcionales que operan como un \text
 % Capa 1
 \node[box, fill=orange!20] (L1) {CAPA 1: RECOLECCIÓN};
 \node[subbox, below=0.15cm of L1] (L1a) {6 medios: scraping de portal (5) + RSS (La Razón)};
-\node[subbox, below=0.1cm of L1a] (L1b) {Extracción de cuerpo de artículo (BeautifulSoup)};
+\node[subbox, below=0.1cm of L1a] (L1b) {Extracción de cuerpo, fecha e imagen (og:image)};
 
 % Capa 2
 \node[box, fill=green!20, below=0.5cm of L1b] (L2) {CAPA 2: ANÁLISIS LOCAL (NLP)};
@@ -221,11 +221,11 @@ El sistema está organizado en cuatro capas funcionales que operan como un \text
 % Capa 4
 \node[box, fill=cyan!20, below=0.5cm of L3b] (L4) {CAPA 4: PRESENTACIÓN};
 \node[subbox, below=0.15cm of L4] (L4a) {FastAPI REST --- 6 endpoints};
-\node[subbox, below=0.1cm of L4a] (L4b) {Astro SSR --- 5 vistas + chat IA};
+\node[subbox, below=0.1cm of L4a] (L4b) {Astro SSR --- 4 vistas + chat IA flotante};
 
 % Scheduler (lateral)
-\node[sidelabel, right=0.4cm of L1, xshift=1.2cm] (S1) {cada 30 min};
-\node[sidelabel, right=0.4cm of L2, xshift=1.2cm] (S2) {cada 60 min};
+\node[sidelabel, right=0.4cm of L1, xshift=1.2cm] (S1) {diario (10:00 UTC)};
+\node[sidelabel, right=0.4cm of L2, xshift=1.2cm] (S2) {diario (11:00 UTC)};
 
 % Flechas principales
 \draw[arrow] (L1b) -- (L2);
@@ -247,7 +247,7 @@ El sistema está organizado en cuatro capas funcionales que operan como un \text
 \label{fig:arquitectura}
 \end{figure}
 
-El \textbf{programador de tareas} (\textit{APScheduler}) coordina dos ciclos: recolección cada 30 minutos y análisis cada 60 minutos. Ambos ciclos son independientes: el análisis siempre trabaja sobre los artículos ya almacenados en la base de datos.
+El \textbf{programador de tareas} (\textit{APScheduler}) coordina dos ciclos diarios: recolección a las 10:00 UTC y análisis a las 11:00 UTC. El ciclo de recolección descarga artículos nuevos y sus imágenes de portada; el ciclo de análisis agrupa los artículos en eventos y ejecuta el análisis editorial con Gemini. Ambos ciclos son independientes: el análisis siempre trabaja sobre los artículos ya almacenados en la base de datos.
 
 % ============================================================
 \section{Recolección de Datos mediante Web Scraping}
@@ -268,7 +268,7 @@ La solución adoptada es un enfoque \textbf{híbrido}: scraping directo del port
 
 \subsection{Arquitectura del pipeline de scraping}
 
-El proceso se divide en dos etapas secuenciales por cada ciclo de 30 minutos:
+El proceso se divide en dos etapas secuenciales dentro del ciclo diario de recolección:
 
 \begin{figure}[H]
 \centering
@@ -300,7 +300,7 @@ El proceso se divide en dos etapas secuenciales por cada ciclo de 30 minutos:
 \node[box, fill=purple!15, draw=purple!50, below=0.7cm of s1] (E2) {ETAPA 2: EXTRACCIÓN};
 \node[sbox, right=of E2] (t1) {HTTP GET};
 \node[sbox, right=of t1] (t2) {BeautifulSoup};
-\node[sbox, right=of t2] (t3) {Cuerpo + Fecha};
+\node[sbox, right=of t2] (t3) {Cuerpo + Fecha + Imagen};
 \node[sbox, right=of t3, fill=verdePos!15, draw=verdePos!50] (t4) {INSERT BD};
 
 \draw[arr] (E2) -- (t1);
@@ -316,7 +316,7 @@ El proceso se divide en dos etapas secuenciales por cada ciclo de 30 minutos:
 \label{fig:scraping_pipeline}
 \end{figure}
 
-La \textbf{Etapa 1} (descubrimiento) descarga la portada de cada medio, extrae todos los hipervínculos y aplica un filtro por expresión regular para quedarse solo con URLs de artículos. La \textbf{Etapa 2} (extracción) visita cada URL nueva y extrae el cuerpo textual y la fecha de publicación.
+La \textbf{Etapa 1} (descubrimiento) descarga la portada de cada medio, extrae todos los hipervínculos y aplica un filtro por expresión regular para quedarse solo con URLs de artículos. La \textbf{Etapa 2} (extracción) visita cada URL nueva y extrae el cuerpo textual, la fecha de publicación y la imagen de portada.
 
 \subsection{Configuración por medio: patrones de URL}
 
@@ -396,7 +396,7 @@ Aspectos relevantes de la implementación:
   \item \textbf{User-Agent realista}: simula un navegador Chrome para evitar bloqueos por bots. Varios portales bolivianos rechazan peticiones con \texttt{python-requests} como User-Agent.
   \item \textbf{Timeout de 15 segundos}: evita que una conexión colgada bloquee el ciclo completo de scraping.
   \item \textbf{Backoff exponencial}: espera $2^0=1$ segundo tras el primer fallo y $2^1=2$ segundos tras el segundo, reduciendo la carga sobre el servidor en momentos de alta demanda.
-  \item \textbf{Fallo silencioso}: si los 3 intentos fallan, retorna \texttt{None} y el artículo queda pendiente para el siguiente ciclo de 30 minutos.
+  \item \textbf{Fallo silencioso}: si los 3 intentos fallan, retorna \texttt{None} y el artículo queda pendiente para el siguiente ciclo diario.
 \end{itemize}
 
 Una vez obtenido el HTML, la extracción de URLs de artículos filtra en dos niveles: primero aplica el patrón regex del medio, luego verifica que ningún fragmento excluido esté presente en el path. Los títulos con menos de 10 caracteres (links de iconos o imágenes sin texto) también se descartan.
@@ -489,6 +489,32 @@ def _extraer_fecha(soup):
     return None
 \end{lstlisting}
 
+\subsection{Extracción de la imagen de portada (og:image)}
+
+Los portales de noticias modernos publican una imagen destacada para cada artículo con el fin de que se muestre correctamente al compartir en redes sociales. Esta imagen se declara en el encabezado HTML como metadato \textbf{Open Graph} (\texttt{og:image}), un estándar ampliamente adoptado por Facebook, Twitter y WhatsApp.
+
+\textbf{El Observador Digital} aprovecha este metadato para mostrar la imagen de portada de cada evento sin necesidad de alojar imágenes propias: simplemente se lee la URL que el propio portal ya declaró y se presenta en la interfaz.
+
+\begin{lstlisting}[language=Python, caption=Extracción de imagen og:image (article.py)]
+def _extraer_imagen(soup, base_url):
+    """Retorna la URL absoluta de og:image, o None si no existe."""
+    og = (soup.find("meta", property="og:image")
+          or soup.find("meta", attrs={"name": "og:image"}))
+    if not og:
+        return None
+    url = (og.get("content") or "").strip()
+    if not url:
+        return None
+    # Convertir URL relativa a absoluta si es necesario
+    if url.startswith("//"):
+        return "https:" + url
+    if url.startswith("/"):
+        return base_url.rstrip("/") + url
+    return url
+\end{lstlisting}
+
+La URL obtenida se almacena en la columna \texttt{imagen\_url} de la tabla \texttt{articulos} (añadida mediante una migración de Alembic). Cuando la API devuelve un evento, selecciona la primera imagen no nula entre sus artículos y la expone como \texttt{imagen\_url} del evento. En el frontend, si la imagen no carga (error HTTP, URL expirada), el componente muestra una franja de color de la categoría del evento como alternativa visual.
+
 \subsection{Filtros de calidad}
 
 Antes de insertar un artículo en la base de datos se aplican cuatro filtros que garantizan la integridad del corpus:
@@ -516,7 +542,7 @@ def correr_scraping(db):
         else:
             stats["nuevos"] += fetch_feed(medio, db)     # RSS feedparser
 
-    # Fase 2: extraer cuerpo de articulos sin completar
+    # Fase 2: extraer cuerpo, fecha e imagen de articulos sin completar
     sin_cuerpo = db.query(Articulo).filter(Articulo.cuerpo == None).all()
     for articulo in sin_cuerpo:
         resultado = scrape_articulo(articulo.url)
@@ -525,13 +551,15 @@ def correr_scraping(db):
             stats["cuerpos"] += 1
         if resultado["fecha_publicacion"] and articulo.fecha_publicacion is None:
             articulo.fecha_publicacion = resultado["fecha_publicacion"]
+        if resultado.get("imagen_url") and articulo.imagen_url is None:
+            articulo.imagen_url = resultado["imagen_url"]
 
     db.commit()
     logger.info(f"Scraping completo: {stats}")
     return stats
 \end{lstlisting}
 
-Esta función es invocada por \textbf{APScheduler} cada 30 minutos dentro del proceso FastAPI. La separación en dos fases es intencional: si un artículo nuevo se descubre en la Fase 1 pero falla la extracción de cuerpo (timeout, error HTTP), queda registrado en la BD con \texttt{cuerpo = NULL} y será reintentado en el siguiente ciclo de 30 minutos.
+Esta función es invocada por \textbf{APScheduler} con un disparador \textit{cron} a las 10:00 UTC cada día. La separación en dos fases es intencional: si un artículo nuevo se descubre en la Fase 1 pero falla la extracción (timeout, error HTTP), queda registrado en la BD con \texttt{cuerpo = NULL} y será reintentado en el siguiente ciclo diario.
 
 \subsection{Manejo de zonas horarias}
 
@@ -615,6 +643,35 @@ for i in articulos:
 
 El resultado es un conjunto de \textit{clusters}: cada cluster contiene los artículos que el algoritmo considera que tratan el mismo evento noticioso, independientemente del medio que los publicó.
 
+\subsection{Criterio de creación de un evento: cobertura cruzada obligatoria}
+
+No todo cluster se convierte en un evento. El sistema aplica un filtro fundamental: \textbf{un cluster solo genera un evento si contiene artículos de dos o más medios distintos}.
+
+¿Por qué este requisito? Porque el objetivo del sistema es analizar \textit{diferencias de cobertura entre medios}. Un artículo publicado por un único portal no permite comparación alguna; no tiene sentido almacenarlo, analizarlo con Gemini o mostrarlo al usuario como ``evento''. Este filtro elimina el ruido de artículos aislados y garantiza que cada evento en la base de datos representa una noticia con relevancia suficiente como para haber llamado la atención de múltiples redacciones.
+
+\begin{lstlisting}[language=Python, caption=Filtro de cobertura cruzada en embeddings.py]
+medios_en_cluster = {art.medio_id for art in cluster}
+if len(medios_en_cluster) < 2:
+    continue  # cluster de un solo medio -> descartar
+# Crear evento solo si hay >= 2 medios distintos
+nuevo_evento = Evento(titulo=..., score_importancia=len(medios_en_cluster)/6)
+\end{lstlisting}
+
+\subsection{Incorporación de artículos nuevos a eventos existentes}
+
+Los eventos noticiosos no terminan en un día. Una huelga que comienza el lunes puede seguir generando artículos el martes y el miércoles. El sistema maneja este escenario comparando los artículos nuevos del día con los eventos ya existentes en la base de datos.
+
+El proceso funciona así:
+
+\begin{enumerate}[nosep]
+  \item Se selecciona un artículo representativo de cada evento de los últimos \textbf{7 días} y se calcula su embedding.
+  \item Para cada cluster de artículos nuevos, se calcula el \textbf{centro del cluster} (promedio de sus embeddings).
+  \item Se compara el centro del cluster con el embedding de cada evento existente.
+  \item Si la similitud supera $0.65$: los artículos nuevos se asignan al evento existente en lugar de crear uno nuevo.
+\end{enumerate}
+
+Esto evita que el mismo evento aparezca duplicado en múltiples entradas y permite que el sistema ``acumule'' la cobertura de un tema a lo largo de varios días de seguimiento.
+
 \subsection{Extracción de palabras clave con KeyBERT}
 
 Una vez formado un cluster, el sistema extrae las cinco palabras o frases más representativas del evento usando \textbf{KeyBERT}. Este algoritmo utiliza internamente BERT para identificar los fragmentos de texto cuyo embedding sea más similar al embedding del documento completo, es decir, las frases que mejor ``resumen'' el contenido.
@@ -633,9 +690,9 @@ Estas palabras clave se almacenan en el campo \texttt{temas} del evento y se usa
 
 \subsection{Análisis de tono por artículo}
 
-Una vez que un artículo tiene cuerpo de texto, se envía a \textbf{gemini-2.5-flash-lite} para determinar su tono editorial. Este modelo más pequeño y económico es suficiente para un análisis por artículo individual.
+Una vez que un artículo tiene cuerpo de texto \textbf{y pertenece a un evento}, se envía a \textbf{gemini-2.5-flash-lite} para determinar su tono editorial. El requisito de pertenecer a un evento es importante: no tiene sentido gastar llamadas a la API para analizar artículos que no van a participar en ninguna comparación de sesgos.
 
-La petición incluye el título y los primeros 1500 caracteres del cuerpo, con temperatura 0.1 (valores bajos hacen la respuesta más determinista y reproducible). El \textit{prompt} solicita una respuesta en formato JSON:
+Este modelo más pequeño y económico es suficiente para un análisis por artículo individual. La petición incluye el título y los primeros 1500 caracteres del cuerpo, con temperatura 0.1 (valores bajos hacen la respuesta más determinista y reproducible). El \textit{prompt} solicita una respuesta en formato JSON:
 
 \begin{lstlisting}[caption=Esquema de respuesta de análisis de tono]
 {
@@ -645,7 +702,7 @@ La petición incluye el título y los primeros 1500 caracteres del cuerpo, con t
 }
 \end{lstlisting}
 
-Si el artículo no tiene texto (solo imagen o video), el campo \texttt{analisis} se marca como \texttt{sin\_texto} y no se realiza la llamada a la API.
+Si el artículo no tiene texto (solo imagen o video), el campo \texttt{analisis} se marca como \texttt{sin\_texto} y no se realiza la llamada a la API. El ciclo de análisis procesa hasta \textbf{50 artículos por día} con este filtro aplicado.
 
 \subsection{Análisis de sesgo comparativo entre medios}
 
@@ -669,20 +726,15 @@ Ejemplo real: para un evento sobre política económica, Brújula Digital obtuvo
 
 \subsection{Gestión de límites de la API gratuita}
 
-El nivel gratuito de Gemini impone restricciones que el sistema respeta activamente:
+El nivel gratuito de Gemini impone restricciones. Para no agotar la cuota, el ciclo de análisis aplica las siguientes estrategias:
 
 \begin{itemize}[nosep]
-  \item \textbf{Flash-lite}: aproximadamente 20 solicitudes por día.
-  \item \textbf{Flash}: aproximadamente 15 solicitudes por minuto en el nivel gratuito.
+  \item \textbf{Filtro por evento}: solo se analizan artículos que ya pertenecen a un evento (con \texttt{evento\_id} asignado). Los artículos huérfanos no se envían a la API.
+  \item \textbf{Límite diario}: el ciclo procesa máximo 50 artículos para análisis de tono.
+  \item \textbf{Pausa entre llamadas}: se introduce una pausa de 4 segundos entre llamadas consecutivas para evitar superar el límite por minuto de la API.
 \end{itemize}
 
-Para no agotar la cuota, el ciclo de análisis (cada 60 minutos) procesa como máximo:
-\begin{itemize}[nosep]
-  \item 20 artículos para análisis de tono.
-  \item 3 eventos para análisis de sesgo.
-\end{itemize}
-
-Adicionalmente, se introduce una pausa de 4 segundos entre llamadas consecutivas a la API para evitar superar el límite por minuto. Esto implica que el análisis completo de la base de datos progresa gradualmente a lo largo de días.
+Al limitar el análisis solo a artículos en eventos y ejecutar el ciclo una vez al día en lugar de cada hora, el sistema hace un uso mucho más eficiente de la cuota gratuita y evita los errores de rate limiting que afectaban al sistema anterior.
 
 % ============================================================
 \section{API REST (FastAPI)}
@@ -722,21 +774,24 @@ El parámetro \texttt{orden} en \texttt{/noticias} acepta \texttt{fecha} (por fe
   "titulo": "Bolivia anuncia reforma tributaria",
   "fecha_deteccion": "2026-05-14T14:00:00Z",
   "score_importancia": 0.67,
+  "imagen_url": "https://eldeber.com.bo/img/reforma.jpg",
   "temas": ["reforma tributaria", "impuesto", "gobierno"],
   "articulos_por_medio": {
     "El Deber": [{
       "titulo": "...",
+      "imagen_url": "https://eldeber.com.bo/img/reforma.jpg",
       "analisis": {"tono": "negativo", "sesgo": -0.3}
     }],
     "Los Tiempos": [{
       "titulo": "...",
+      "imagen_url": null,
       "analisis": {"tono": "neutral", "sesgo": 0.1}
     }]
   }
 }
 \end{lstlisting}
 
-\subsection*{Asistente IA con \textit{function calling}}
+\subsection*{Asistente IA con \textit{function calling} y tarjetas de contenido}
 
 El endpoint \texttt{POST /chat} integra Gemini con \textit{function calling} (herramientas). El modelo decide autónomamente cuándo llamar cada herramienta en función de la pregunta del usuario:
 
@@ -747,31 +802,113 @@ El endpoint \texttt{POST /chat} integra Gemini con \textit{function calling} (he
   \item \texttt{resumen\_estadisticas}: devuelve métricas globales del sistema.
 \end{itemize}
 
-Gemini puede encadenar hasta 3 rondas de uso de herramientas antes de generar la respuesta final en lenguaje natural.
+Gemini puede encadenar hasta 3 rondas de uso de herramientas antes de generar la respuesta final. Además del texto de respuesta, el endpoint devuelve una lista de \textbf{tarjetas} (\texttt{cards}): objetos estructurados que el frontend puede renderizar como componentes visuales navegables. Hay dos tipos de tarjeta:
+
+\begin{table}[H]
+\centering
+\caption{Tipos de tarjeta devueltos por el endpoint de chat}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\rowcolor{azulAS!15}
+\textbf{Tipo} & \textbf{Campos clave} & \textbf{Comportamiento en UI} \\
+\midrule
+\texttt{evento} & id, titulo, medios, score\_importancia, imagen\_url & Abre \texttt{/eventos/\{id\}} \\
+\rowcolor{grisCelda}
+\texttt{articulo} & id, titulo, url, medio, tono, imagen\_url & Abre URL original (nueva pestaña) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{lstlisting}[caption=Estructura de respuesta del endpoint /chat]
+{
+  "respuesta": "En los últimos días, el debate sobre...",
+  "tools_usadas": ["get_eventos", "buscar_noticias"],
+  "cards": [
+    {
+      "tipo": "evento",
+      "id": 42,
+      "titulo": "Reforma tributaria en debate",
+      "medios": ["El Deber", "Los Tiempos", "Brujula Digital"],
+      "score_importancia": 0.5,
+      "imagen_url": "https://..."
+    },
+    {
+      "tipo": "articulo",
+      "id": 301,
+      "titulo": "Senado aprueba reforma en segunda lectura",
+      "url": "https://eldeber.com.bo/...",
+      "medio": "El Deber",
+      "tono": "negativo"
+    }
+  ]
+}
+\end{lstlisting}
 
 % ============================================================
 \section{Frontend (Astro + React)}
 % ============================================================
 
+La interfaz web está construida con \textbf{Astro} en modo de renderizado en servidor (SSR). El enfoque de \textit{islas} de Astro permite que la mayor parte del HTML se genere en el servidor sin enviar JavaScript al cliente, mientras que React solo se carga para los componentes que requieren interactividad real (filtros, gráficos, chat). El estilo visual imita la tipografía y composición de un periódico clásico.
+
 \subsection{Portada (/)}
 
-La página principal muestra el evento de mayor importancia en formato destacado (\textit{featured}), seguido de secciones temáticas por categoría (Política, Economía, Sociedad, Deportes, etc.). En el lateral derecho se integra el chat conversacional que permite al usuario hacer preguntas directamente sobre las noticias monitoreadas.
+La portada es la vista principal del sistema. Está implementada como un componente React interactivo (\texttt{PortadaContenido.tsx}) que recibe todos los eventos del servidor y maneja el estado de filtrado en el cliente sin recargar la página.
 
-\subsection{Eventos (/eventos)}
+\subsubsection*{Filtro de categorías}
 
-Listado cronológico inverso de todos los eventos detectados. Cada fila muestra: etiqueta de categoría con color temático, título del evento, nombres de los medios que lo cubren, tiempo relativo desde la detección y porcentaje de importancia. La vista incluye filtros por categoría aplicables sin recarga de página.
+En la parte superior de la portada aparece una fila de botones con las categorías detectadas automáticamente a partir de las palabras clave de los eventos (Política, Economía, Deportes, Sociedad, Internacional, Cultura). Al hacer clic en una categoría, la vista se actualiza instantáneamente mostrando solo los eventos de esa categoría. Un botón ``Todas'' restablece la vista completa.
+
+Las categorías se infieren en el frontend a partir del campo \texttt{temas} de cada evento, sin requerir ningún cambio en la base de datos: el módulo \texttt{categorias.ts} aplica un diccionario de palabras clave asociadas a cada categoría.
+
+\subsubsection*{Evento destacado}
+
+El primer evento de la categoría activa (o el más importante globalmente) se presenta en formato destacado: una tarjeta horizontal que ocupa todo el ancho disponible, con la imagen de portada a la izquierda y el texto a la derecha. Si la imagen no está disponible o no carga, la tarjeta ocupa el ancho completo con solo el texto.
+
+\subsubsection*{Grid de eventos}
+
+El resto de los eventos se presenta en un grid de tres columnas adaptable al ancho de pantalla (\textit{responsive}). Cada tarjeta (\texttt{EventoCard}) muestra: imagen de portada (si existe), categoría con su color, título, barra de importancia y los medios que lo cubrieron. Si la imagen falla al cargar, se muestra una franja de color correspondiente a la categoría del evento.
+
+\subsubsection*{Asistente IA flotante}
+
+En la esquina inferior derecha de toda la interfaz aparece un botón flotante con el texto ``$\star$ Analista IA''. Al hacer clic, se despliega un panel de chat de 22×30 cm que permite al usuario hacer preguntas en lenguaje natural sobre las noticias monitoreadas. El panel se puede cerrar en cualquier momento sin perder el historial de la conversación.
+
+Cuando el asistente responde, el texto de la respuesta aparece acompañado de tarjetas de eventos o artículos relacionados con la pregunta. Cada tarjeta es un enlace directo al evento o al artículo original, con el título, el medio y (cuando está disponible) la imagen de portada.
+
+\subsection{Cronología (/cronologia)}
+
+Esta vista reemplaza las páginas \texttt{/timeline} y \texttt{/serie} del sistema anterior, unificándolas en una visualización más informativa y visualmente clara.
+
+\subsubsection*{Gráfico beeswarm}
+
+El elemento central es un gráfico SVG de tipo \textbf{beeswarm}: cada punto representa un evento, su posición horizontal indica la fecha de detección, y su posición vertical se calcula automáticamente para evitar que los puntos se superpongan (de ahí el nombre ``beeswarm'' --- panal de abejas).
+
+El gráfico codifica dos dimensiones de información:
+
+\begin{itemize}[nosep]
+  \item \textbf{Color}: representa el sesgo promedio del evento entre sus medios.
+    \begin{itemize}[nosep]
+      \item Rojo ($\#8b1a1a$): sesgo promedio negativo (cobertura crítica).
+      \item Gris neutro ($\#8a7a62$): sesgo próximo a cero (cobertura equilibrada).
+      \item Verde ($\#1a4a1a$): sesgo promedio positivo (cobertura favorable).
+      \item Gris oscuro ($\#4a4a4a$): sin datos de sesgo (el artículo aún no fue analizado).
+    \end{itemize}
+    La transición entre colores no es abrupta: el componente \texttt{lerpHex()} interpola el color de forma suave entre los extremos rojo y verde pasando por el neutro.
+  \item \textbf{Tamaño}: proporcional al \texttt{score\_importancia} del evento. Un evento cubierto por los seis medios ($1.0$) tiene un radio máximo; uno cubierto por dos medios ($0.33$) tiene un radio mínimo.
+\end{itemize}
+
+Al pasar el cursor sobre un punto aparece un \textit{tooltip} con el título del evento, la fecha, el sesgo promedio y el número de medios. Al hacer clic se navega al detalle del evento.
+
+\subsubsection*{Leyenda}
+
+Bajo el gráfico se muestra una leyenda con dos elementos: una barra de gradiente horizontal que ilustra la escala de colores de sesgo (rojo→gris→verde), y tres círculos de ejemplo que muestran la correspondencia entre tamaño y porcentaje de importancia.
+
+\subsubsection*{Tarjetas de eventos}
+
+Debajo del gráfico se listan todos los eventos en formato de tarjeta, ordenados por fecha. El borde izquierdo de cada tarjeta tiene el color del sesgo promedio del evento, creando coherencia visual con el gráfico superior.
 
 \subsection{Sesgos (/sesgos)}
 
 Visualización centrada en las diferencias editoriales. Para cada evento con análisis de sesgo, se representa un eje horizontal de $-1$ a $+1$ con un punto por cada medio que lo cubre. La dispersión visual de los puntos muestra intuitivamente la divergencia: puntos muy separados indican coberturas muy distintas, puntos agrupados indican consenso editorial. Un algoritmo de \textit{beeswarm} evita la superposición de etiquetas cuando varios medios tienen valores similares.
-
-\subsection{Cronología (/timeline)}
-
-Vista de artículos individuales ordenados por fecha de publicación. En la parte superior, un gráfico de barras por categoría sirve de filtro interactivo: clicar en una categoría filtra la lista. Cada artículo muestra un punto de color indicando su tono editorial (verde = positivo, rojo = negativo, gris = neutral).
-
-\subsection{Serie temporal (/serie)}
-
-La vista más elaborada. El gráfico SVG tiene dos secciones verticales: la superior muestra barras de densidad de artículos por día; la inferior presenta un carril (\textit{swimlane}) por categoría donde cada punto representa un evento, con su tamaño proporcional al \textit{score} de importancia. \textit{Beeswarm} se aplica también aquí para separar eventos que ocurrieron en la misma fecha. Esta vista es significativa a partir de dos o más semanas de datos continuos.
 
 \subsection{Stack tecnológico}
 
@@ -829,6 +966,20 @@ APScheduler en proceso
 Portal scraping sobre RSS
   & RSS puro
   & RSS de medios bolivianos: hasta 2--3 semanas de retraso; scraping es tiempo real. \\
+Ciclo diario (CronTrigger) en lugar de cada 30/60 min
+  & Interval scheduler
+  & El ciclo cada 30 min agotaba la cuota de Gemini y generaba artículos sin analizar acumulados. Un ciclo diario es predecible y compatible con la cuota gratuita. \\
+\rowcolor{grisCelda}
+2+ medios distintos para crear un evento
+  & Cualquier cluster
+  & Sin este filtro, la BD se llena de artículos individuales sin posibilidad de análisis comparativo, que es el objetivo central del sistema. \\
+og:image desde metadato Open Graph
+  & Subir imágenes propias / sin imágenes
+  & Los portales ya generan esta imagen para redes sociales; reutilizarla es gratis y mantiene la imagen actualizada sin infraestructura adicional. \\
+\rowcolor{grisCelda}
+Chat responde con tarjetas estructuradas
+  & Solo texto plano
+  & Las tarjetas permiten navegación directa al evento o artículo relevante, convirtiendo el chat en un punto de entrada a todo el sistema. \\
 \bottomrule
 \end{tabular}
 \label{tab:decisiones}
@@ -871,7 +1022,7 @@ A continuación se presenta un ejemplo concreto de funcionamiento del sistema co
 
 \subsection*{Evento: partido de fútbol}
 
-El evento ``Bolívar empata con Nacional Potosí'' fue detectado con cobertura de cuatro medios (Red Uno, El Deber, Los Tiempos, Erbol), obteniendo un \textit{score} de importancia de $4/6 = 0.67$ (67\%).
+El evento ``Bolívar empata con Nacional Potosí'' fue detectado con cobertura de cuatro medios (Red Uno, El Deber, Los Tiempos, Erbol), obteniendo un \textit{score} de importancia de $4/6 = 0.67$ (67\%). El sistema detectó este evento porque cuatro redacciones distintas publicaron artículos similares el mismo día; al superar el requisito de 2+ medios, se creó el evento automáticamente.
 
 \begin{table}[h]
 \centering
@@ -896,6 +1047,8 @@ Los Tiempos      & $+0.00$ & Neutral / equilibrado \\
 
 \textit{El partido entre Bolívar y Nacional Potosí fue cubierto por cuatro medios con enfoques distintos. Brújula Digital destacó los fallos defensivos del conjunto paceño, mientras que Los Tiempos mantuvo un tono descriptivo sin valoraciones. El Deber mencionó brevemente el resultado sin análisis adicional. La divergencia de 0.40 indica diferencias moderadas en el encuadre pero sin posiciones editoriales extremas.}
 
+En el gráfico de cronología, este evento aparecería como un punto de tamaño mediano (67\% de importancia) con un color tirando a gris neutro (sesgo promedio cercano a $-0.17$), ubicado en la fecha de detección correspondiente.
+
 % ============================================================
 \section{Limitaciones y Trabajo Futuro}
 % ============================================================
@@ -903,15 +1056,17 @@ Los Tiempos      & $+0.00$ & Neutral / equilibrado \\
 \subsection*{Limitaciones actuales}
 
 \begin{itemize}[nosep]
-  \item \textbf{Cuota de Gemini gratuita}: con 20 solicitudes diarias para flash-lite, el análisis de tono de todos los artículos acumulados progresa lentamente. Una base de datos con cientos de artículos puede tardar semanas en tener análisis completo.
+  \item \textbf{Disponibilidad de imágenes}: no todos los portales bolivianos publican el metadato \texttt{og:image} en sus artículos. Los eventos sin imagen se muestran con una franja de color como alternativa, pero la experiencia visual es menos rica. Esto depende de la configuración interna de cada portal y escapa al control del sistema.
 
-  \item \textbf{La Razón solo por RSS}: al ser una SPA con JavaScript, no es posible hacer scraping directo del portal. El RSS introduce el retraso típico de este medio (generalmente horas, no semanas, pero inferior al scraping directo).
+  \item \textbf{La Razón solo por RSS}: al ser una SPA con JavaScript, no es posible hacer scraping directo del portal. El RSS introduce el retraso típico de este medio (generalmente horas, no semanas, pero inferior al scraping directo). Además, el RSS no incluye metadatos \texttt{og:image}, por lo que los artículos de La Razón raramente tienen imagen.
 
-  \item \textbf{Union-Find sin eliminación}: una vez que un artículo se asigna a un evento, no puede ser reasignado. Los clusters son permanentes; no existe mecanismo de corrección automática si dos eventos distintos se agrupan erróneamente.
+  \item \textbf{Union-Find sin corrección}: una vez que un artículo se asigna a un evento, no puede ser reasignado. Los clusters son permanentes; no existe mecanismo de corrección automática si dos eventos distintos se agrupan erróneamente.
 
-  \item \textbf{Baja cobertura cruzada}: la fragmentación regional de los medios bolivianos hace que muchos eventos solo sean cubiertos por uno o dos medios. El análisis de sesgo comparativo requiere mínimo dos medios con texto, lo que limita el número de eventos con datos de divergencia.
+  \item \textbf{Baja cobertura cruzada}: la fragmentación regional de los medios bolivianos hace que muchos eventos solo sean cubiertos por uno o dos medios. El requisito de 2+ medios filtra correctamente estos casos, pero reduce el número total de eventos detectados. El análisis de sesgo comparativo requiere mínimo dos medios con texto.
 
-  \item \textbf{Serie temporal}: la vista \texttt{/serie} solo es informativa con al menos dos semanas de datos continuos. En las primeras semanas de operación ofrece información muy limitada.
+  \item \textbf{Cronología de sesgo}: el gráfico beeswarm solo es informativo para eventos con análisis de sesgo ya completado. Eventos recientes aún en cola de análisis aparecen con color gris neutro, lo que puede confundirse con sesgo real de cero.
+
+  \item \textbf{Velocidad de embeddings}: en CPU, agrupar 100 artículos tarda aproximadamente 70 segundos. Con una base de datos de miles de artículos, el ciclo de análisis puede extenderse varios minutos.
 \end{itemize}
 
 \subsection*{Trabajo futuro}

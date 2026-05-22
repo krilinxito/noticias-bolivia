@@ -33,6 +33,8 @@ def correr_scraping(db):
                 stats["cuerpos"] += 1
             if resultado["fecha_publicacion"] and articulo.fecha_publicacion is None:
                 articulo.fecha_publicacion = resultado["fecha_publicacion"]
+            if resultado.get("imagen_url") and articulo.imagen_url is None:
+                articulo.imagen_url = resultado["imagen_url"]
             db.add(articulo)
         except Exception as e:
             logger.error(f"Error cuerpo {articulo.url}: {e}")

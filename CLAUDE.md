@@ -14,29 +14,32 @@ Medios cubiertos: Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol, La Ra
 5 medios (portal scraping) + La Razón (RSS)
         │
         ▼
-[portal.py / rss.py] ──► [article.py] ── cuerpo + fecha_publicacion ──► BD (articulos)
+[portal.py / rss.py] ──► [article.py] ── cuerpo + fecha + imagen_url ──► BD (articulos)
         │
         ▼
 [embeddings.py] ── MiniLM embeddings → cosine sim > 0.65 → Union-Find
-               └── KeyBERT keywords ──────────────────────────────────► BD (eventos)
+               ├── Filtro: solo clusters con 2+ medios distintos → nuevo evento
+               ├── Artículos nuevos: comparar vs eventos existentes (7 días)
+               └── KeyBERT keywords ─────────────────────────────────────► BD (eventos)
         │
         ▼
 [gemini.py]
-  ├─ analizar_articulo()     ── flash-lite → {tono, temas, fuentes} (20/ciclo)
-  └─ analizar_sesgo_evento() ── flash     → {sesgo[-1,+1], resumen} (3/ciclo)
+  ├─ analizar_articulo()     ── flash-lite → {tono, temas, fuentes}
+  │                             Solo artículos con evento_id; máx 50/ciclo
+  └─ analizar_sesgo_evento() ── flash     → {sesgo[-1,+1], resumen}
         │                                                      ▼
         └─────────────────────────────────────────────── BD (articulos.analisis JSON)
         │
         ▼
-[FastAPI] → /noticias  /medios  /eventos  /sesgos  /chat
+[FastAPI] → /noticias  /medios  /eventos  /sesgos  /chat (devuelve cards)
         │
         ▼
-[Astro SSR + Node] → /  /eventos  /sesgos  /timeline  /serie
+[Astro SSR + Node] → /  /eventos  /sesgos  /cronologia  /medios
 ```
 
 **Scheduler (APScheduler in-process)**:
-- Cada 30 min: scraping (`job_scraping`)
-- Cada 60 min: agrupación + tono + sesgo (`job_analisis`)
+- Diario 10:00 UTC: scraping (`job_scraping`) — CronTrigger(hour=10, minute=0)
+- Diario 11:00 UTC: agrupación + tono + sesgo (`job_analisis`) — CronTrigger(hour=11, minute=0)
 
 ---
 
@@ -111,6 +114,7 @@ El scraping por portal funciona así: se descarga la página de listado, se extr
 | url | String UNIQUE | URL original |
 | resumen_rss | Text | Resumen del feed (puede ser null) |
 | cuerpo | Text | Texto completo (puede ser null) |
+| imagen_url | String | URL de og:image del artículo (puede ser null) |
 | fecha_publicacion | DateTime | Fecha en hora Bolivia (UTC-4), naive |
 | fecha_scraping | DateTime | Cuándo fue guardado (UTC naive) |
 | analisis | JSON | Ver formato abajo |
@@ -220,13 +224,14 @@ Traefik gestiona SSL y enruta por dominio. `PUBLIC_API_URL` debe apuntar al domi
 
 | Ruta | Descripción |
 |---|---|
-| `/` | Portada: evento destacado + secciones por categoría + chat IA |
+| `/` | Portada: filtro de categorías + evento destacado (imagen) + grid de cards |
 | `/eventos` | Feed cronológico de todos los eventos (filtro por categoría) |
 | `/eventos/[id]` | Detalle del evento: sesgómetro, cobertura por medio, extractos |
 | `/sesgos` | Divergencia editorial: ranking de eventos con mayor diferencia de cobertura |
-| `/timeline` | Artículos raw ordenados por fecha + distribución de categorías |
-| `/serie` | Serie temporal: beeswarm de eventos + densidad diaria de artículos |
+| `/cronologia` | Beeswarm de eventos: sesgo=color, importancia=tamaño. Reemplaza /timeline y /serie |
 | `/medios` | Información de los 6 medios monitoreados |
+
+El chat IA es un widget flotante (botón "✦ Analista IA" en esquina inferior derecha) disponible en todas las páginas. Responde en texto + tarjetas de eventos/artículos.
 
 ### Categorías detectadas automáticamente
 
@@ -264,6 +269,14 @@ Sin cambios en la BD — se infieren en el frontend a partir de los `temas` del 
 
 **Umbral de similitud 0.65**: Calibrado empíricamente. Con 0.75 había muy pocos agrupamientos cross-media; con 0.65 se capturan eventos compartidos sin agrupar artículos no relacionados.
 
+**2+ medios para crear evento**: Sin este filtro, la BD se llena de artículos de un solo medio sin posibilidad de análisis comparativo. El objetivo del sistema es la cobertura cruzada.
+
+**Ciclo diario en lugar de cada 30/60 min**: El ciclo frecuente agotaba la cuota de Gemini y acumulaba artículos sin analizar. Un disparo diario es predecible, usa la cuota eficientemente y reduce la carga total sobre los portales scrapeados.
+
+**og:image desde metadato Open Graph**: Los portales ya generan esta imagen para redes sociales. Reutilizarla es gratuito y evita alojar imágenes propias. Si expira o no existe, el frontend muestra una franja de color como fallback.
+
+**Chat con tarjetas estructuradas**: Además del texto, el endpoint /chat devuelve `cards` (evento/articulo). El frontend las renderiza como componentes navegables, haciendo del chat un punto de entrada a todo el contenido.
+
 **PostgreSQL + JSON**: Un solo servicio (Supabase), queries SQL sobre campos relacionales con flexibilidad JSON para `analisis` que varía según el estado del procesamiento.
 
 **APScheduler in-process**: Para un proyecto monolítico no necesita Celery + Redis. Se inicia en el lifespan de FastAPI y se detiene limpiamente en el shutdown.
@@ -272,9 +285,11 @@ Sin cambios en la BD — se infieren en el frontend a partir de los `temas` del 
 
 ## Limitaciones conocidas
 
-- **Rate limiting Gemini**: El tier gratuito permite ~20 req/día. El análisis de tono progresa lentamente — el scheduler analiza máximo 20 artículos/hora.
+- **Ciclo diario**: El scraping y análisis corren una vez al día. Noticias publicadas fuera del ciclo aparecen al día siguiente.
+- **Análisis solo para artículos en eventos**: El tono y sesgo solo se calculan para artículos con `evento_id` asignado — sin cobertura cruzada, no hay análisis editorial.
+- **Imágenes**: No todos los portales publican `og:image`. La Razón (RSS) raramente tiene imagen.
 - **La Razón**: Solo RSS. El feed puede tener artículos con hasta 1-2 semanas de retraso.
-- **Poco solapamiento cross-media**: Los 6 medios cubren regiones distintas (SC, CBBA, nacional). Con más datos históricos el análisis de sesgo se vuelve más rico.
-- **Serie temporal**: Requiere 2-3 semanas de datos continuos para mostrar patrones útiles.
+- **Poco solapamiento cross-media**: Los 6 medios cubren regiones distintas (SC, CBBA, nacional). El requisito de 2+ medios filtra muchos artículos locales.
+- **Beeswarm sin sesgo**: Eventos sin análisis Gemini aparecen en gris; puede confundirse con sesgo neutral real.
 - **Velocidad de embeddings**: En CPU, agrupar 100 artículos tarda ~70 segundos.
 - **Bloqueos HTTP**: Brújula Digital y Erbol retornan 500 en algunos artículos — se manejan silenciosamente.

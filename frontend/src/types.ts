@@ -23,6 +23,7 @@ export interface Articulo {
   medio?: { id: number; nombre: string }
   analisis?: Analisis
   cuerpo?: string
+  imagen_url?: string | null
 }
 
 export interface ArticuloPorMedio {
@@ -35,6 +36,7 @@ export interface Evento {
   fecha_deteccion: string
   score_importancia: number
   temas?: string[]
+  imagen_url?: string | null
   articulos_por_medio: ArticuloPorMedio
 }
 
@@ -42,3 +44,7 @@ export interface ChatMessage {
   rol: 'usuario' | 'asistente'
   texto: string
 }
+
+export type CardChat =
+  | { tipo: 'evento'; id: number; titulo: string; medios: string[]; score_importancia: number; imagen_url: string | null; fecha_deteccion: string | null }
+  | { tipo: 'articulo'; id: number; titulo: string; url: string; medio: string; imagen_url: string | null; tono: string | null }

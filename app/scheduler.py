@@ -1,4 +1,5 @@
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 from loguru import logger
 
 from app.database import SessionLocal
@@ -23,12 +24,21 @@ def job_analisis():
     with SessionLocal() as db:
         agrupar_en_eventos(db)
 
-        # Tono: analizar artículos pendientes
-        arts = db.query(Articulo).filter(Articulo.analisis == None).limit(20).all()
+        # Tono: solo artículos en eventos (multi-medio), máx 50 por ciclo
+        arts = (
+            db.query(Articulo)
+            .filter(
+                Articulo.analisis == None,
+                Articulo.evento_id.isnot(None),
+            )
+            .limit(50)
+            .all()
+        )
         for a in arts:
             analizar_articulo(a, db)
+        logger.info(f"Tono: {len(arts)} artículos analizados")
 
-        # Sesgo: eventos con 2+ medios que aún no tienen sesgo calculado
+        # Sesgo: todos los eventos con 2+ medios que aún no tienen sesgo
         candidatos = (
             db.query(Articulo.evento_id)
             .filter(
@@ -48,8 +58,6 @@ def job_analisis():
             )
             if not tiene_sesgo:
                 sin_sesgo.append(eid)
-            if len(sin_sesgo) >= 3:
-                break
         for eid in sin_sesgo:
             analizar_sesgo_evento(eid, db)
         logger.info(f"Sesgo: {len(sin_sesgo)} eventos analizados")
@@ -58,10 +66,12 @@ def job_analisis():
 
 
 def iniciar_scheduler():
-    scheduler.add_job(job_scraping, "interval", minutes=30, id="scraping")
-    scheduler.add_job(job_analisis, "interval", minutes=60, id="analisis")
+    # 06:00 Bolivia (UTC-4) = 10:00 UTC
+    scheduler.add_job(job_scraping, CronTrigger(hour=10, minute=0), id="scraping")
+    # Análisis 1 hora después para dar margen al scraping
+    scheduler.add_job(job_analisis, CronTrigger(hour=11, minute=0), id="analisis")
     scheduler.start()
-    logger.info("Scheduler iniciado")
+    logger.info("Scheduler iniciado (ciclo diario 06:00 / 07:00 Bolivia)")
 
 
 def detener_scheduler():

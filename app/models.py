@@ -43,6 +43,7 @@ class Articulo(Base):
     fecha_publicacion = Column(DateTime, nullable=True)
     fecha_scraping = Column(DateTime, default=datetime.utcnow)
     analisis = Column(JSON, nullable=True)
+    imagen_url = Column(String, nullable=True)
 
     medio = relationship("Medio", back_populates="articulos")
     evento = relationship("Evento", back_populates="articulos")

@@ -66,18 +66,28 @@ def _extraer_fecha(soup) -> datetime | None:
     return None
 
 
+def _extraer_imagen(soup) -> str | None:
+    og = soup.find("meta", property="og:image") or soup.find("meta", attrs={"name": "og:image"})
+    if og:
+        url = (og.get("content") or "").strip()
+        if url.startswith("http"):
+            return url
+    return None
+
+
 def scrape_articulo(url) -> dict:
-    """Retorna {cuerpo: str|None, fecha_publicacion: datetime|None}"""
+    """Retorna {cuerpo: str|None, fecha_publicacion: datetime|None, imagen_url: str|None}"""
     try:
         r = requests.get(url, headers=HEADERS, timeout=15)
         r.raise_for_status()
     except Exception as e:
         logger.warning(f"Error HTTP {url}: {e}")
-        return {"cuerpo": None, "fecha_publicacion": None}
+        return {"cuerpo": None, "fecha_publicacion": None, "imagen_url": None}
 
     try:
         soup = BeautifulSoup(r.text, "lxml")
         fecha = _extraer_fecha(soup)
+        imagen_url = _extraer_imagen(soup)
 
         for selector in RUIDO:
             for tag in soup.select(selector):
@@ -92,11 +102,11 @@ def scrape_articulo(url) -> dict:
                     cuerpo = texto
                     break
 
-        return {"cuerpo": cuerpo, "fecha_publicacion": fecha}
+        return {"cuerpo": cuerpo, "fecha_publicacion": fecha, "imagen_url": imagen_url}
 
     except Exception as e:
         logger.warning(f"Error parsing {url}: {e}")
-        return {"cuerpo": None, "fecha_publicacion": None}
+        return {"cuerpo": None, "fecha_publicacion": None, "imagen_url": None}
 
 
 def scrape_cuerpo(url) -> str | None:
