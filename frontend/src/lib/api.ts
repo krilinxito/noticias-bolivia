@@ -43,3 +43,14 @@ export const chat = (mensaje: string, historial: ChatMessage[]): Promise<{ respu
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ mensaje, historial }),
   }).then(r => r.json())
+
+export interface Stats {
+  total_eventos: number
+  total_articulos: number
+  articulos_analizados: number
+  medio_mas_activo: { nombre: string | null; total: number }
+  evento_mas_divergente: { id: number; titulo: string; divergencia: number } | null
+}
+
+export const getStats = (): Promise<Stats> =>
+  fetch(`${API_URL}/stats`).then(r => r.json())

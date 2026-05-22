@@ -523,7 +523,8 @@ Antes de insertar un artículo en la base de datos se aplican cuatro filtros que
   \item \textbf{Deduplicación por URL}: la tabla tiene una restricción \texttt{UNIQUE} sobre la columna \texttt{url}; si ya existe, la inserción se omite sin error.
   \item \textbf{Título mínimo}: el título debe tener al menos 10 caracteres (elimina links de iconos o imágenes sin texto).
   \item \textbf{Cuerpo mínimo}: el cuerpo debe superar los 200 caracteres (descarta artículos de solo imagen, video o galería sin texto editorial).
-  \item \textbf{Antigüedad máxima}: artículos con fecha de publicación superior a 30 días se descartan al inicio del sistema para evitar poblar la base de datos con contenido histórico irrelevante.
+  \item \textbf{Antigüedad máxima --- 7 días}: en la Etapa 2 (post-extracción de cuerpo), si la fecha del artículo supera los 7 días se elimina de la base de datos. Este filtro se aplica \textit{después} de extraer el cuerpo porque los portales no exponen la fecha hasta visitar el artículo individualmente. Los artículos sin fecha parseable se conservan por precaución. El feed RSS de La Razón aplica el mismo límite de 7 días al descubrir entradas.
+  \item \textbf{Links muertos}: artículos que tras el scraping quedan sin cuerpo \textit{y} sin fecha (respuesta 404, página en blanco, error del portal) se eliminan de la base de datos automáticamente.
 \end{itemize}
 
 \subsection{Orquestación y ejecución periódica}
@@ -870,9 +871,21 @@ El resto de los eventos se presenta en un grid de tres columnas adaptable al anc
 
 \subsubsection*{Asistente IA flotante}
 
-En la esquina inferior derecha de toda la interfaz aparece un botón flotante con el texto ``$\star$ Analista IA''. Al hacer clic, se despliega un panel de chat de 22×30 cm que permite al usuario hacer preguntas en lenguaje natural sobre las noticias monitoreadas. El panel se puede cerrar en cualquier momento sin perder el historial de la conversación.
+En la esquina inferior derecha de toda la interfaz aparece un botón flotante con el texto ``$\star$ Analista IA''. Al hacer clic, se despliega un panel de chat que permite al usuario hacer preguntas en lenguaje natural sobre las noticias monitoreadas. El panel se puede cerrar en cualquier momento sin perder el historial de la conversación.
 
-Cuando el asistente responde, el texto de la respuesta aparece acompañado de tarjetas de eventos o artículos relacionados con la pregunta. Cada tarjeta es un enlace directo al evento o al artículo original, con el título, el medio y (cuando está disponible) la imagen de portada.
+El asistente incluye cuatro capas de interactividad diseñadas para facilitar la exploración de los datos:
+
+\begin{enumerate}[nosep]
+  \item \textbf{Preguntas sugeridas}: al abrir el chat por primera vez aparecen cuatro botones con preguntas de ejemplo clicables (``¿Qué eventos importantes hay esta semana?'', ``¿Qué medio tiene más sesgo editorial?'', etc.). Esto elimina la barrera de no saber qué preguntar. Después de cada respuesta del asistente se muestran además dos sugerencias de seguimiento contextuales.
+
+  \item \textbf{Selector de medio}: una fila de seis botones (uno por cada medio monitoreado) permite al usuario fijar un contexto antes de preguntar. Si se selecciona ``El Deber'', el mensaje se envía con la instrucción de hablar específicamente sobre ese medio, sin que el usuario tenga que escribirlo.
+
+  \item \textbf{Renderizado enriquecido}: las respuestas de Gemini pueden incluir texto en \textbf{negrita} (marcado con \texttt{**texto**}) y listas con guiones. El componente detecta automáticamente estos patrones y los convierte en elementos HTML con formato, haciendo la respuesta más legible.
+
+  \item \textbf{Panel de estadísticas}: un botón ``$\equiv$ Stats'' en la cabecera del panel consulta el endpoint \texttt{GET /stats} y muestra un resumen del sistema: número de eventos detectados, artículos recolectados, artículos analizados, medio más activo y evento con mayor divergencia editorial. Este panel sirve como punto de entrada visual al estado actual del sistema.
+\end{enumerate}
+
+Cuando el asistente responde, el texto aparece acompañado de tarjetas (\textit{cards}) de eventos o artículos relacionados con la pregunta. Cada tarjeta es un enlace directo al evento o al artículo original, con el título, el medio y (cuando está disponible) la imagen de portada.
 
 \subsection{Cronología (/cronologia)}
 
@@ -980,6 +993,13 @@ og:image desde metadato Open Graph
 Chat responde con tarjetas estructuradas
   & Solo texto plano
   & Las tarjetas permiten navegación directa al evento o artículo relevante, convirtiendo el chat en un punto de entrada a todo el sistema. \\
+\rowcolor{grisCelda}
+Filtro de 7 días post-extracción (portal)
+  & Sin filtro / filtro al descubrir URL
+  & El portal no expone la fecha hasta visitar el artículo; el filtro se aplica en Etapa 2 tras extraer la fecha real. Artículos más viejos no son relevantes para análisis de cobertura actual. \\
+Preguntas sugeridas + selector de medio en chat
+  & Chat de texto libre únicamente
+  & Reducen la barrera de entrada: el usuario puede explorar los datos sin saber qué preguntar, y el selector de medio añade contexto sin escribirlo manualmente. \\
 \bottomrule
 \end{tabular}
 \label{tab:decisiones}

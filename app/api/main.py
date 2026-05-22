@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.scheduler import iniciar_scheduler, detener_scheduler
-from app.api.routes import noticias, medios, eventos, chat, sesgos
+from app.api.routes import noticias, medios, eventos, chat, sesgos, stats
 
 
 @asynccontextmanager
@@ -33,6 +33,7 @@ app.include_router(medios.router, prefix="/medios", tags=["medios"])
 app.include_router(eventos.router, prefix="/eventos", tags=["eventos"])
 app.include_router(chat.router, prefix="/chat", tags=["chat"])
 app.include_router(sesgos.router, prefix="/sesgos", tags=["sesgos"])
+app.include_router(stats.router, prefix="/stats", tags=["stats"])
 
 
 @app.get("/", tags=["estado"])
