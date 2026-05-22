@@ -1,5 +1,6 @@
 ---
 import '../styles/global.css'
+import ChatWidget from '../components/ChatWidget'
 interface Props { title: string }
 const { title } = Astro.props
 
@@ -33,6 +34,7 @@ const fecha = new Date().toLocaleDateString('es-BO', {
         <a href="/sesgos" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Sesgos</a>
         <a href="/cronologia" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Cronología</a>
         <a href="/medios" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Medios</a>
+        <a href="/stats" style="text-decoration:none; color:var(--ink); border-bottom: 2px solid transparent;" class="nav-link">Stats</a>
       </nav>
     </header>
 
@@ -43,6 +45,8 @@ const fecha = new Date().toLocaleDateString('es-BO', {
     <footer style="border-top: 3px double var(--border-dark); padding: 1rem 2rem; text-align:center; font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light); margin-top:3rem;">
       El Observador Digital · RSS + Scraping · Gemini 2.5 · KeyBERT · Bolivia
     </footer>
+
+    <ChatWidget client:load />
 
   </body>
 </html>

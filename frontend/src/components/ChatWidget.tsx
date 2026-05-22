@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { ChatMessage, CardChat } from '../types'
-import { chat, getStats } from '../lib/api'
-import type { Stats } from '../lib/api'
+import { chat } from '../lib/api'
 
 interface MsgAsistente extends ChatMessage {
   rol: 'asistente'
@@ -16,14 +15,6 @@ const TONO_COLOR: Record<string, string> = {
 }
 
 const MEDIOS = ['Red Uno', 'El Deber', 'Brújula Digital', 'Los Tiempos', 'Erbol', 'La Razón']
-
-const NAV_LINKS = [
-  { label: 'Portada', href: '/' },
-  { label: 'Eventos', href: '/eventos' },
-  { label: 'Sesgos', href: '/sesgos' },
-  { label: 'Cronología', href: '/cronologia' },
-  { label: 'Medios', href: '/medios' },
-]
 
 const PREGUNTAS_INICIALES = [
   '¿Qué eventos importantes hay esta semana?',
@@ -83,18 +74,14 @@ function renderTexto(texto: string) {
 }
 
 function MiniEventoCard({ card }: { card: Extract<CardChat, { tipo: 'evento' }> }) {
-  const [imgError, setImgError] = useState(false)
   const color = '#5a4a32'
   return (
-    <a href={`/eventos/${card.id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', marginTop: '0.5rem', overflow: 'hidden' }}>
-      {card.imagen_url && !imgError && (
-        <img src={card.imagen_url} alt="" style={{ width: '100%', height: '80px', objectFit: 'cover', display: 'block' }} loading="lazy" onError={() => setImgError(true)} />
-      )}
-      <div style={{ padding: '0.5rem 0.6rem', borderLeft: `3px solid ${color}` }}>
+    <a href={`/eventos/${card.id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderTop: `3px solid ${color}`, marginTop: '0.5rem', overflow: 'hidden' }}>
+      <div style={{ padding: '0.5rem 0.6rem' }}>
         <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.08em', color, marginBottom: '0.2rem' }}>
           Evento · {card.medios.length} medios
         </p>
-        <p style={{ fontFamily: 'Georgia, serif', fontSize: '0.8rem', lineHeight: 1.3, marginBottom: '0.2rem' }}>
+        <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 600, fontSize: '0.8rem', lineHeight: 1.3, marginBottom: '0.2rem' }}>
           {card.titulo}
         </p>
         <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.62rem', color: 'var(--ink-light)' }}>
@@ -119,66 +106,6 @@ function MiniArticuloCard({ card }: { card: Extract<CardChat, { tipo: 'articulo'
   )
 }
 
-function PanelStats({ stats, onCerrar }: { stats: Stats | null; onCerrar: () => void }) {
-  if (!stats) {
-    return (
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-light)', fontFamily: "'IM Fell English', Georgia, serif", fontStyle: 'italic', fontSize: '0.82rem' }}>
-        Cargando estadísticas…
-      </div>
-    )
-  }
-  const pct = stats.total_articulos > 0 ? Math.round((stats.articulos_analizados / stats.total_articulos) * 100) : 0
-  return (
-    <div style={{ flex: 1, overflowY: 'auto', padding: '1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: '0.9rem', minHeight: 0 }}>
-      <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--ink-light)', marginBottom: '0.25rem' }}>
-        Resumen del sistema
-      </p>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-        <div style={{ borderLeft: '3px solid var(--border-dark)', paddingLeft: '0.6rem' }}>
-          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '1.6rem', lineHeight: 1 }}>{stats.total_eventos}</p>
-          <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', color: 'var(--ink-light)' }}>eventos detectados</p>
-        </div>
-        <div style={{ borderLeft: '3px solid var(--border-dark)', paddingLeft: '0.6rem' }}>
-          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '1.6rem', lineHeight: 1 }}>{stats.total_articulos}</p>
-          <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', color: 'var(--ink-light)' }}>artículos recolectados</p>
-        </div>
-        <div style={{ borderLeft: '3px solid var(--border-dark)', paddingLeft: '0.6rem' }}>
-          <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '1.6rem', lineHeight: 1 }}>{stats.articulos_analizados}</p>
-          <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', color: 'var(--ink-light)' }}>artículos analizados ({pct}%)</p>
-        </div>
-        {stats.medio_mas_activo.nombre && (
-          <div style={{ borderLeft: '3px solid var(--border-dark)', paddingLeft: '0.6rem' }}>
-            <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '1rem', lineHeight: 1.2 }}>{stats.medio_mas_activo.nombre}</p>
-            <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', color: 'var(--ink-light)' }}>medio más activo · {stats.medio_mas_activo.total} artículos</p>
-          </div>
-        )}
-      </div>
-
-      {stats.evento_mas_divergente && (
-        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-          <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', marginBottom: '0.4rem' }}>
-            Mayor divergencia editorial
-          </p>
-          <p style={{ fontFamily: 'Georgia, serif', fontSize: '0.82rem', lineHeight: 1.35, marginBottom: '0.3rem' }}>
-            {stats.evento_mas_divergente.titulo}
-          </p>
-          <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', color: '#8b1a1a', marginBottom: '0.5rem' }}>
-            Divergencia: {stats.evento_mas_divergente.divergencia.toFixed(2)} / 2.0
-          </p>
-          <a href={`/eventos/${stats.evento_mas_divergente.id}`} style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.68rem', color: 'var(--ink)', textDecoration: 'none', borderBottom: '1px solid var(--ink)' }}>
-            Ver evento →
-          </a>
-        </div>
-      )}
-
-      <button onClick={onCerrar} style={{ marginTop: 'auto', fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.7rem', background: 'transparent', border: '1px solid var(--border)', padding: '0.3rem 0.7rem', cursor: 'pointer', color: 'var(--ink-light)', alignSelf: 'flex-start' }}>
-        ← Volver al chat
-      </button>
-    </div>
-  )
-}
-
 export default function ChatWidget() {
   const [open, setOpen] = useState(false)
   const [msgs, setMsgs] = useState<Msg[]>([
@@ -187,8 +114,6 @@ export default function ChatWidget() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [medioCtx, setMedioCtx] = useState<string | null>(null)
-  const [mostrarStats, setMostrarStats] = useState(false)
-  const [stats, setStats] = useState<Stats | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -215,11 +140,6 @@ export default function ChatWidget() {
 
   const enviar = () => enviarTexto(input)
 
-  const abrirStats = () => {
-    setMostrarStats(true)
-    if (!stats) getStats().then(setStats).catch(() => {})
-  }
-
   const seguimientosPara = (idx: number) => {
     const offset = idx % SEGUIMIENTOS.length
     return [SEGUIMIENTOS[offset], SEGUIMIENTOS[(offset + 1) % SEGUIMIENTOS.length]]
@@ -240,40 +160,13 @@ export default function ChatWidget() {
         }}>
 
           {/* Header */}
-          <div style={{ borderBottom: '1px solid var(--border)', padding: '0.6rem 0.875rem', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-            <div>
-              <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '0.85rem' }}>Analista IA</p>
-              <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.68rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>Gemini · consulta datos reales</p>
-            </div>
-            <button
-              onClick={mostrarStats ? () => setMostrarStats(false) : abrirStats}
-              title="Estadísticas del sistema"
-              style={{ background: mostrarStats ? 'var(--ink)' : 'transparent', color: mostrarStats ? 'var(--paper)' : 'var(--ink-light)', border: '1px solid var(--border)', padding: '0.25rem 0.5rem', cursor: 'pointer', fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.68rem', letterSpacing: '0.04em' }}
-            >
-              ≡ Stats
-            </button>
+          <div style={{ borderBottom: '1px solid var(--border)', padding: '0.6rem 0.875rem' }}>
+            <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '0.85rem' }}>Analista IA</p>
+            <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.68rem', color: 'var(--ink-light)', fontStyle: 'italic' }}>Gemini · consulta datos reales</p>
           </div>
 
-          {/* Nav links */}
-          <div style={{ borderBottom: '1px solid var(--border)', padding: '0.4rem 0.875rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            {NAV_LINKS.map((l, i) => (
-              <span key={l.href} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {i > 0 && <span style={{ color: 'var(--border-dark)', fontSize: '0.6rem' }}>·</span>}
-                <a href={l.href} style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--ink-light)', textDecoration: 'none' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--ink)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink-light)')}
-                >
-                  {l.label}
-                </a>
-              </span>
-            ))}
-          </div>
-
-          {/* Cuerpo: stats o mensajes */}
-          {mostrarStats ? (
-            <PanelStats stats={stats} onCerrar={() => setMostrarStats(false)} />
-          ) : (
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', minHeight: 0 }}>
+          {/* Mensajes */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', minHeight: 0 }}>
               {msgs.map((m, i) => (
                 <div key={i}>
                   <div style={{ display: 'flex', justifyContent: m.rol === 'usuario' ? 'flex-end' : 'flex-start' }}>
@@ -339,29 +232,25 @@ export default function ChatWidget() {
                 </div>
               )}
               <div ref={bottomRef} />
-            </div>
-          )}
+          </div>
 
           {/* Selector de medio */}
-          {!mostrarStats && (
-            <div style={{ borderTop: '1px solid var(--border)', padding: '0.4rem 0.6rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-light)', marginRight: '0.1rem' }}>Medio:</span>
-              {MEDIOS.map(m => {
-                const activo = medioCtx === m
-                return (
-                  <button key={m} onClick={() => setMedioCtx(activo ? null : m)}
-                    style={{ background: activo ? 'var(--ink)' : 'transparent', color: activo ? 'var(--paper)' : 'var(--ink-light)', border: '1px solid var(--border)', padding: '0.15rem 0.45rem', cursor: 'pointer', fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.62rem', whiteSpace: 'nowrap' }}
-                  >
-                    {m}{activo ? ' ×' : ''}
-                  </button>
-                )
-              })}
-            </div>
-          )}
+          <div style={{ borderTop: '1px solid var(--border)', padding: '0.4rem 0.6rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-light)', marginRight: '0.1rem' }}>Medio:</span>
+            {MEDIOS.map(m => {
+              const activo = medioCtx === m
+              return (
+                <button key={m} onClick={() => setMedioCtx(activo ? null : m)}
+                  style={{ background: activo ? 'var(--ink)' : 'transparent', color: activo ? 'var(--paper)' : 'var(--ink-light)', border: '1px solid var(--border)', padding: '0.15rem 0.45rem', cursor: 'pointer', fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.62rem', whiteSpace: 'nowrap' }}
+                >
+                  {m}{activo ? ' ×' : ''}
+                </button>
+              )
+            })}
+          </div>
 
           {/* Input */}
-          {!mostrarStats && (
-            <div style={{ borderTop: '1px solid var(--border)', padding: '0.6rem', display: 'flex', gap: '0.5rem' }}>
+          <div style={{ borderTop: '1px solid var(--border)', padding: '0.6rem', display: 'flex', gap: '0.5rem' }}>
               <input
                 type="text"
                 value={input}
@@ -389,8 +278,7 @@ export default function ChatWidget() {
               >
                 Enviar
               </button>
-            </div>
-          )}
+          </div>
         </div>
       )}
 

@@ -1,7 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro'
 import PortadaContenido from '../components/PortadaContenido'
-import ChatWidget from '../components/ChatWidget'
 import { getEventos } from '../lib/api'
 import { detectarCategoria } from '../lib/categorias'
 
@@ -15,5 +14,4 @@ const eventosConCat = eventos.map((ev: any) => ({
 ---
 <Layout title="Portada">
   <PortadaContenido eventos={eventosConCat} client:load />
-  <ChatWidget client:load />
 </Layout>

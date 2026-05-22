@@ -1,0 +1,67 @@
+---
+import Layout from '../layouts/Layout.astro'
+import { getStats } from '../lib/api'
+import type { Stats } from '../lib/api'
+
+let stats: Stats | null = null
+try { stats = await getStats() } catch {}
+
+const pct = stats && stats.total_articulos > 0
+  ? Math.round((stats.articulos_analizados / stats.total_articulos) * 100)
+  : 0
+---
+<Layout title="Estadísticas">
+  <div style="max-width:680px; margin:2.5rem auto; padding:0 1.5rem;">
+
+    <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.8rem; font-weight:700; border-bottom:3px double var(--border-dark); padding-bottom:0.5rem; margin-bottom:1.5rem;">
+      Estadísticas del sistema
+    </h2>
+
+    {!stats ? (
+      <p style="font-family:'IM Fell English',Georgia,serif; color:var(--ink-light); font-style:italic;">
+        No se pudo conectar con la API.
+      </p>
+    ) : (
+      <>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:2rem;">
+          <div style="border-left:4px solid var(--border-dark); padding-left:0.875rem;">
+            <p style="font-family:'Playfair Display',Georgia,serif; font-weight:700; font-size:2.4rem; line-height:1;">{stats.total_eventos}</p>
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.8rem; color:var(--ink-light);">eventos detectados</p>
+          </div>
+          <div style="border-left:4px solid var(--border-dark); padding-left:0.875rem;">
+            <p style="font-family:'Playfair Display',Georgia,serif; font-weight:700; font-size:2.4rem; line-height:1;">{stats.total_articulos}</p>
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.8rem; color:var(--ink-light);">artículos recolectados</p>
+          </div>
+          <div style="border-left:4px solid var(--border-dark); padding-left:0.875rem;">
+            <p style="font-family:'Playfair Display',Georgia,serif; font-weight:700; font-size:2.4rem; line-height:1;">{stats.articulos_analizados}</p>
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.8rem; color:var(--ink-light);">artículos analizados ({pct}%)</p>
+          </div>
+          {stats.medio_mas_activo.nombre && (
+            <div style="border-left:4px solid var(--border-dark); padding-left:0.875rem;">
+              <p style="font-family:'Playfair Display',Georgia,serif; font-weight:700; font-size:1.4rem; line-height:1.2;">{stats.medio_mas_activo.nombre}</p>
+              <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.8rem; color:var(--ink-light);">medio más activo · {stats.medio_mas_activo.total} artículos</p>
+            </div>
+          )}
+        </div>
+
+        {stats.evento_mas_divergente && (
+          <div style="border-top:1px solid var(--border); padding-top:1.25rem;">
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); margin-bottom:0.6rem;">
+              Evento con mayor divergencia editorial
+            </p>
+            <p style="font-family:'Playfair Display',Georgia,serif; font-size:1.15rem; font-weight:700; line-height:1.35; margin-bottom:0.4rem;">
+              {stats.evento_mas_divergente.titulo}
+            </p>
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.78rem; color:#8b1a1a; margin-bottom:0.75rem;">
+              Divergencia: {stats.evento_mas_divergente.divergencia.toFixed(2)} / 2.0
+            </p>
+            <a href={`/eventos/${stats.evento_mas_divergente.id}`}
+              style="font-family:'IM Fell English',Georgia,serif; font-size:0.8rem; color:var(--ink); text-decoration:none; border-bottom:1px solid var(--ink);">
+              Ver evento →
+            </a>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+</Layout>
