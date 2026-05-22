@@ -215,7 +215,7 @@ El sistema está organizado en cuatro capas funcionales que operan como un \text
 
 % Capa 3
 \node[box, fill=purple!20, below=0.5cm of L2c] (L3) {CAPA 3: ANÁLISIS IA (Gemini API)};
-\node[subbox, below=0.15cm of L3] (L3a) {Tono por artículo --- gemini-2.5-flash-lite};
+\node[subbox, below=0.15cm of L3] (L3a) {Tono por artículo --- gemini-2.0-flash-lite};
 \node[subbox, below=0.1cm of L3a] (L3b) {Sesgo comparativo entre medios --- gemini-2.5-flash};
 
 % Capa 4
@@ -400,6 +400,8 @@ Aspectos relevantes de la implementación:
 \end{itemize}
 
 Una vez obtenido el HTML, la extracción de URLs de artículos filtra en dos niveles: primero aplica el patrón regex del medio, luego verifica que ningún fragmento excluido esté presente en el path. Los títulos con menos de 10 caracteres (links de iconos o imágenes sin texto) también se descartan.
+
+Para mantener el volumen de artículos manejable y no sobrecargar el análisis de Gemini, se impone un \textbf{límite de 20 artículos nuevos por medio por ciclo} (\texttt{MAX\_POR\_MEDIO = 20}). Si una portada contiene más URLs nuevas, se descartan las excedentes. En la práctica, la deduplicación por URL hace que la mayoría de ciclos encuentren muchos menos de 20 artículos nuevos por medio, ya que los artículos del día anterior ya están almacenados.
 
 \subsection{Extracción del cuerpo y la fecha del artículo}
 
@@ -691,9 +693,9 @@ Estas palabras clave se almacenan en el campo \texttt{temas} del evento y se usa
 
 \subsection{Análisis de tono por artículo}
 
-Una vez que un artículo tiene cuerpo de texto \textbf{y pertenece a un evento}, se envía a \textbf{gemini-2.5-flash-lite} para determinar su tono editorial. El requisito de pertenecer a un evento es importante: no tiene sentido gastar llamadas a la API para analizar artículos que no van a participar en ninguna comparación de sesgos.
+Una vez que un artículo tiene cuerpo de texto \textbf{y pertenece a un evento}, se envía a \textbf{gemini-2.0-flash-lite} para determinar su tono editorial. El requisito de pertenecer a un evento es importante: no tiene sentido gastar llamadas a la API para analizar artículos que no van a participar en ninguna comparación de sesgos.
 
-Este modelo más pequeño y económico es suficiente para un análisis por artículo individual. La petición incluye el título y los primeros 1500 caracteres del cuerpo, con temperatura 0.1 (valores bajos hacen la respuesta más determinista y reproducible). El \textit{prompt} solicita una respuesta en formato JSON:
+Este modelo de alta capacidad de procesamiento (\textasciitilde{}1500 solicitudes/día en el nivel gratuito) es ideal para la clasificación de tono: es una tarea simple y repetitiva que se aplica a muchos artículos. La petición incluye el título y los primeros 1500 caracteres del cuerpo, con temperatura 0.1 (valores bajos hacen la respuesta más determinista y reproducible). El \textit{prompt} solicita una respuesta en formato JSON:
 
 \begin{lstlisting}[caption=Esquema de respuesta de análisis de tono]
 {
@@ -727,12 +729,32 @@ Ejemplo real: para un evento sobre política económica, Brújula Digital obtuvo
 
 \subsection{Gestión de límites de la API gratuita}
 
-El nivel gratuito de Gemini impone restricciones. Para no agotar la cuota, el ciclo de análisis aplica las siguientes estrategias:
+El nivel gratuito de Gemini asigna cuotas diarias distintas según el modelo. En lugar de usar un único modelo para todas las tareas, el sistema distribuye el trabajo según el volumen de llamadas esperado:
+
+\begin{table}[H]
+\centering
+\caption{Distribución de modelos Gemini por tarea}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\rowcolor{azulAS!15}
+\textbf{Tarea} & \textbf{Modelo} & \textbf{Cuota gratuita} & \textbf{Motivo} \\
+\midrule
+Análisis de tono & \texttt{gemini-2.0-flash-lite} & \textasciitilde{}1500 req/día & Muchos artículos, tarea simple \\
+\rowcolor{grisCelda}
+Análisis de sesgo & \texttt{gemini-2.5-flash} & \textasciitilde{}25 req/día & Pocos eventos/día, requiere comprensión profunda \\
+Chat conversacional & \texttt{gemini-2.5-flash-lite} & \textasciitilde{}20 req/día & Pocas sesiones diarias, calidad media suficiente \\
+\bottomrule
+\end{tabular}
+\label{tab:modelos_gemini}
+\end{table}
+
+Además de la distribución por modelo, el ciclo aplica otras estrategias para no agotar la cuota:
 
 \begin{itemize}[nosep]
   \item \textbf{Filtro por evento}: solo se analizan artículos que ya pertenecen a un evento (con \texttt{evento\_id} asignado). Los artículos huérfanos no se envían a la API.
   \item \textbf{Límite diario}: el ciclo procesa máximo 50 artículos para análisis de tono.
   \item \textbf{Pausa entre llamadas}: se introduce una pausa de 4 segundos entre llamadas consecutivas para evitar superar el límite por minuto de la API.
+  \item \textbf{Degradación elegante}: si la API devuelve un error 429 (cuota agotada), el ciclo registra el aviso y detiene el lote del día sin interrumpir el proceso completo.
 \end{itemize}
 
 Al limitar el análisis solo a artículos en eventos y ejecutar el ciclo una vez al día en lugar de cada hora, el sistema hace un uso mucho más eficiente de la cuota gratuita y evita los errores de rate limiting que afectaban al sistema anterior.
@@ -1000,6 +1022,13 @@ Filtro de 7 días post-extracción (portal)
 Preguntas sugeridas + selector de medio en chat
   & Chat de texto libre únicamente
   & Reducen la barrera de entrada: el usuario puede explorar los datos sin saber qué preguntar, y el selector de medio añade contexto sin escribirlo manualmente. \\
+\rowcolor{grisCelda}
+3 modelos Gemini distintos por tarea (tono / sesgo / chat)
+  & Un solo modelo para todo
+  & Cada modelo tiene su propia cuota gratuita diaria. Asignar tono al modelo de mayor cuota (\textasciitilde{}1500 req/día), sesgo al más capaz y chat a uno intermedio maximiza el uso sin coste adicional. \\
+Límite de 20 artículos por medio por ciclo de scraping
+  & Sin límite / procesar todo
+  & Evita que portadas con muchos artículos antiguos saturen la cola de análisis. La deduplicación garantiza que los artículos ya almacenados no se cuentan. \\
 \bottomrule
 \end{tabular}
 \label{tab:decisiones}

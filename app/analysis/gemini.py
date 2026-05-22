@@ -11,8 +11,9 @@ from app.models import Articulo, Evento, Medio
 
 _client = None
 
-MODEL_LITE = "gemini-2.5-flash-lite"
-MODEL_FLASH = "gemini-2.5-flash"
+MODEL_TONO  = "gemini-2.0-flash-lite"   # ~1500 req/día — clasificación simple, muchos artículos
+MODEL_SESGO = "gemini-2.5-flash"        # ~25 req/día — análisis comparativo, pocos eventos/ciclo
+MODEL_CHAT  = "gemini-2.5-flash-lite"   # ~20 req/día — conversación, pocas llamadas por sesión
 
 
 def _get_client():
@@ -61,10 +62,14 @@ Formato exacto:
 Artículo: {articulo.titulo}. {texto[:1500]}"""
 
     try:
-        resultado = _parsear_json(_generar(MODEL_LITE, prompt))
+        resultado = _parsear_json(_generar(MODEL_TONO, prompt))
     except Exception as e:
+        msg = str(e)
+        if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+            logger.warning(f"Cuota diaria agotada (tono), deteniendo análisis de artículos")
+            raise
         logger.error(f"Error Gemini artículo {articulo.id}: {e}")
-        resultado = {"error": str(e)[:200]}
+        resultado = {"error": msg[:200]}
 
     articulo.analisis = resultado
     db.add(articulo)
@@ -105,8 +110,12 @@ Donde sesgo va de -1.0 (muy negativo) a 1.0 (muy positivo).
 {texto_comparativo}"""
 
     try:
-        resultado = _parsear_json(_generar(MODEL_FLASH, prompt))
+        resultado = _parsear_json(_generar(MODEL_SESGO, prompt))
     except Exception as e:
+        msg = str(e)
+        if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
+            logger.warning(f"Cuota diaria agotada (sesgo), deteniendo análisis de eventos")
+            raise
         logger.error(f"Error Gemini sesgo evento {evento_id}: {e}")
         return
 

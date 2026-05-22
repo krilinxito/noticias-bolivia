@@ -58,8 +58,9 @@ Medios cubiertos: Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol, La Ra
 | keybert | latest | Keywords semánticas sin fine-tuning |
 | scikit-learn | latest | Similitud coseno |
 | google-genai | latest | SDK Gemini (nuevo, reemplaza `google-generativeai`) |
-| Gemini 2.5-flash-lite | — | Tono por artículo: rápido y barato |
-| Gemini 2.5-flash | — | Comparación de sesgo entre medios |
+| Gemini 2.0-flash-lite | — | Tono por artículo: ~1500 req/día, tarea simple de alta frecuencia |
+| Gemini 2.5-flash | — | Comparación de sesgo entre medios: ~25 req/día, requiere comprensión profunda |
+| Gemini 2.5-flash-lite | — | Chat conversacional: ~20 req/día, calidad media suficiente |
 | APScheduler | latest | Cron in-process |
 | loguru | latest | Logging estructurado |
 | Astro | 6.x | SSR con islas React, output:server |

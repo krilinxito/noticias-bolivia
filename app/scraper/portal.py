@@ -110,8 +110,13 @@ def scrape_portal(medio, db) -> int:
     # Filtrar titulos vacíos o muy cortos (links de iconos/imágenes)
     candidatos = {url: t for url, t in candidatos.items() if len(t) >= 10}
 
+    # Limitar a las primeras 20 URLs nuevas por medio por ciclo
+    MAX_POR_MEDIO = 20
+
     nuevos = 0
-    for url, titulo in candidatos.items():
+    for url, titulo in list(candidatos.items())[:MAX_POR_MEDIO * 3]:
+        if nuevos >= MAX_POR_MEDIO:
+            break
         if db.query(Articulo).filter(Articulo.url == url).first():
             continue
         art = Articulo(medio_id=medio.id, url=url, titulo=titulo)

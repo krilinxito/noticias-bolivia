@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from google.genai import types
 from loguru import logger
 
-from app.analysis.gemini import _get_client, MODEL_FLASH
+from app.analysis.gemini import _get_client, MODEL_CHAT
 from app.database import SessionLocal
 from app.models import Articulo, Evento, Medio
 
@@ -261,7 +261,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
     try:
         for _ in range(MAX_ROUNDS):
             response = client.models.generate_content(
-                model=MODEL_FLASH,
+                model=MODEL_CHAT,
                 contents=contents,
                 config=config,
             )

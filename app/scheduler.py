@@ -34,9 +34,15 @@ def job_analisis():
             .limit(50)
             .all()
         )
+        tono_ok = 0
         for a in arts:
-            analizar_articulo(a, db)
-        logger.info(f"Tono: {len(arts)} artículos analizados")
+            try:
+                analizar_articulo(a, db)
+                tono_ok += 1
+            except Exception:
+                logger.warning("Cuota de tono agotada, continuando con sesgo")
+                break
+        logger.info(f"Tono: {tono_ok}/{len(arts)} artículos analizados")
 
         # Sesgo: todos los eventos con 2+ medios que aún no tienen sesgo
         candidatos = (
@@ -58,9 +64,15 @@ def job_analisis():
             )
             if not tiene_sesgo:
                 sin_sesgo.append(eid)
+        sesgo_ok = 0
         for eid in sin_sesgo:
-            analizar_sesgo_evento(eid, db)
-        logger.info(f"Sesgo: {len(sin_sesgo)} eventos analizados")
+            try:
+                analizar_sesgo_evento(eid, db)
+                sesgo_ok += 1
+            except Exception:
+                logger.warning("Cuota de sesgo agotada, deteniendo")
+                break
+        logger.info(f"Sesgo: {sesgo_ok}/{len(sin_sesgo)} eventos analizados")
 
     logger.info("Scheduler: análisis completo")
 
