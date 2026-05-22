@@ -113,7 +113,7 @@ export default function ChatWidget() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [medioCtx, setMedioCtx] = useState<string | null>(null)
+  const [medioCtx, setMedioCtx] = useState<string[]>([])
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function ChatWidget() {
     const msg = texto.trim()
     if (!msg || loading) return
     const historial: ChatMessage[] = msgs.map(m => ({ rol: m.rol, texto: m.texto }))
-    const msgFinal = medioCtx ? `(Habla específicamente sobre ${medioCtx}): ${msg}` : msg
+    const msgFinal = medioCtx.length > 0 ? `(Habla específicamente sobre ${medioCtx.join(', ')}): ${msg}` : msg
     setMsgs(h => [...h, { rol: 'usuario', texto: msg }])
     setInput('')
     setLoading(true)
@@ -238,9 +238,9 @@ export default function ChatWidget() {
           <div style={{ borderTop: '1px solid var(--border)', padding: '0.4rem 0.6rem', display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--ink-light)', marginRight: '0.1rem' }}>Medio:</span>
             {MEDIOS.map(m => {
-              const activo = medioCtx === m
+              const activo = medioCtx.includes(m)
               return (
-                <button key={m} onClick={() => setMedioCtx(activo ? null : m)}
+                <button key={m} onClick={() => setMedioCtx(prev => activo ? prev.filter(x => x !== m) : [...prev, m])}
                   style={{ background: activo ? 'var(--ink)' : 'transparent', color: activo ? 'var(--paper)' : 'var(--ink-light)', border: '1px solid var(--border)', padding: '0.15rem 0.45rem', cursor: 'pointer', fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.62rem', whiteSpace: 'nowrap' }}
                 >
                   {m}{activo ? ' ×' : ''}
@@ -256,7 +256,7 @@ export default function ChatWidget() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && enviar()}
-                placeholder={medioCtx ? `Pregunta sobre ${medioCtx}…` : '¿Qué pasó hoy en Bolivia?'}
+                placeholder={medioCtx.length > 0 ? `Pregunta sobre ${medioCtx.join(', ')}…` : '¿Qué pasó hoy en Bolivia?'}
                 style={{
                   flex: 1, background: 'transparent',
                   border: '1px solid var(--border)',
