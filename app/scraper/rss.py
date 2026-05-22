@@ -58,7 +58,7 @@ def fetch_feed(medio, db):
                 return 0
             time.sleep(2 ** intento)
 
-    limite_antiguedad = datetime.now(timezone.utc) - timedelta(days=30)
+    limite_antiguedad = datetime.now(timezone.utc) - timedelta(days=7)
 
     for entry in feed.entries:
         url = entry.get("link")
