@@ -124,7 +124,7 @@ Donde sesgo va de -1.0 (muy negativo) a 1.0 (muy positivo).
         if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
             logger.warning(f"Cuota diaria agotada (sesgo), deteniendo análisis de eventos")
             raise
-        logger.error(f"Error Gemini sesgo evento {evento_id}: {e}")
+        logger.error(f"Error Gemini sesgo episodio {episodio_id}: {e}")
         return
 
     sesgo_por_medio = resultado.get("sesgo_por_medio", {})
