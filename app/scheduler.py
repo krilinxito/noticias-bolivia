@@ -18,18 +18,23 @@ def job_scraping():
 def job_analisis():
     logger.info("Scheduler: iniciando análisis...")
     from sqlalchemy import func, distinct as sql_distinct
-    from app.analysis.embeddings import agrupar_en_eventos
-    from app.analysis.gemini import analizar_articulo, analizar_sesgo_evento
+    from app.analysis.embeddings import agrupar_en_episodios, agrupar_en_temas
+    from app.analysis.gemini import analizar_articulo, analizar_sesgo_episodio
     from app.models import Articulo
-    with SessionLocal() as db:
-        agrupar_en_eventos(db)
 
-        # Tono: solo artículos en eventos (multi-medio), máx 50 por ciclo
+    with SessionLocal() as db:
+        # Nivel 1: agrupar artículos en episodios (sucesos puntuales, estricto)
+        agrupar_en_episodios(db)
+
+        # Nivel 2: agrupar episodios en temas (historia en curso, laxo)
+        agrupar_en_temas(db)
+
+        # Tono: artículos en episodios sin analizar, máx 50 por ciclo
         arts = (
             db.query(Articulo)
             .filter(
                 Articulo.analisis == None,
-                Articulo.evento_id.isnot(None),
+                Articulo.episodio_id.isnot(None),
             )
             .limit(50)
             .all()
@@ -44,43 +49,42 @@ def job_analisis():
                 break
         logger.info(f"Tono: {tono_ok}/{len(arts)} artículos analizados")
 
-        # Sesgo: eventos con 2+ medios que ya tienen tono analizado
+        # Sesgo: episodios con 2+ medios que ya tienen tono analizado
         candidatos = (
-            db.query(Articulo.evento_id)
+            db.query(Articulo.episodio_id)
             .filter(
-                Articulo.evento_id.isnot(None),
+                Articulo.episodio_id.isnot(None),
                 Articulo.analisis.isnot(None),
             )
-            .group_by(Articulo.evento_id)
+            .group_by(Articulo.episodio_id)
             .having(func.count(sql_distinct(Articulo.medio_id)) >= 2)
             .all()
         )
         sin_sesgo = []
         for (eid,) in candidatos:
-            arts_ev = db.query(Articulo).filter(Articulo.evento_id == eid).all()
+            arts_ep = db.query(Articulo).filter(Articulo.episodio_id == eid).all()
             tiene_sesgo = any(
                 a.analisis and a.analisis.get('sesgo') is not None
-                for a in arts_ev
+                for a in arts_ep
             )
             if not tiene_sesgo:
                 sin_sesgo.append(eid)
+
         sesgo_ok = 0
         for eid in sin_sesgo:
             try:
-                analizar_sesgo_evento(eid, db)
+                analizar_sesgo_episodio(eid, db)
                 sesgo_ok += 1
             except Exception:
                 logger.warning("Cuota de sesgo agotada, deteniendo")
                 break
-        logger.info(f"Sesgo: {sesgo_ok}/{len(sin_sesgo)} eventos analizados")
+        logger.info(f"Sesgo: {sesgo_ok}/{len(sin_sesgo)} episodios analizados")
 
     logger.info("Scheduler: análisis completo")
 
 
 def iniciar_scheduler():
-    # 06:00 Bolivia (UTC-4) = 10:00 UTC
     scheduler.add_job(job_scraping, CronTrigger(hour=10, minute=0), id="scraping")
-    # Análisis 1 hora después para dar margen al scraping
     scheduler.add_job(job_analisis, CronTrigger(hour=11, minute=0), id="analisis")
     scheduler.start()
     logger.info("Scheduler iniciado (ciclo diario 06:00 / 07:00 Bolivia)")

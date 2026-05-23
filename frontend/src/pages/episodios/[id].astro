@@ -1,0 +1,89 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import SesgometroComparativo from '../../components/SesgometroComparativo'
+import CoberturaArticulos from '../../components/CoberturaArticulos'
+import { getEpisodio } from '../../lib/api'
+
+const { id } = Astro.params
+let episodio = null
+try { episodio = await getEpisodio(Number(id)) } catch {}
+
+const medios = episodio ? Object.entries(episodio.articulos_por_medio ?? {}) : []
+
+const mediosSesgo = medios
+  .map(([nombre, arts]: [string, any[]]) => ({
+    medio: nombre,
+    sesgo: arts[0]?.analisis?.sesgo ?? null,
+    tono: arts[0]?.analisis?.tono ?? null,
+  }))
+  .filter(m => m.sesgo !== null)
+
+const resumen = medios.length > 0 ? (medios[0][1] as any[])[0]?.analisis?.resumen_comparativo : null
+const pct = episodio ? Math.round(episodio.score_importancia * 100) : 0
+---
+<Layout title={episodio?.titulo ?? 'Episodio'}>
+  <div style="max-width:56rem; margin:0 auto; padding:2rem;">
+
+    {!episodio ? (
+      <p style="font-style:italic; color:var(--ink-light);">Episodio no encontrado.</p>
+    ) : (
+      <div>
+        <div style="display:flex; gap:1rem; margin-bottom:0.25rem;">
+          <a href="/" style="font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light); text-decoration:none;">← Portada</a>
+          {episodio.tema_id && (
+            <a href={`/temas/${episodio.tema_id}`} style="font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light); text-decoration:none;">↑ Ver tema</a>
+          )}
+        </div>
+
+        <!-- Cabecera del episodio -->
+        <div style="border-top:4px solid var(--ink); border-bottom:1px solid var(--border-dark); margin:0.75rem 0 1.5rem; padding:1rem 0 1rem;">
+          <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--red); margin-bottom:0.4rem;">
+            {medios.length} {medios.length === 1 ? 'medio' : 'medios'} · {new Date(episodio.fecha_deteccion).toLocaleDateString('es-BO', { timeZone: 'America/La_Paz', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+          <h1 style="font-family:'Playfair Display',Georgia,serif; font-size:2rem; font-weight:700; line-height:1.2; margin:0 0 1rem;">
+            {episodio.titulo}
+          </h1>
+
+          <div style="display:flex; align-items:center; gap:0.75rem;">
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-light);">Relevancia</span>
+            <div style="flex:1; height:6px; background:var(--border); position:relative; max-width:200px;">
+              <div style={`height:100%; background:${pct >= 60 ? '#8b1a1a' : pct >= 30 ? '#8a7a62' : '#c8b89a'}; width:${pct}%;`}></div>
+            </div>
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light);">{pct}%</span>
+          </div>
+        </div>
+
+        <!-- Keywords -->
+        {episodio.keywords && episodio.keywords.length > 0 && (
+          <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.78rem; color:var(--ink-light); font-style:italic; margin-bottom:1.25rem; border-left:2px solid var(--border); padding-left:0.75rem;">
+            {episodio.keywords.join(' · ')}
+          </p>
+        )}
+
+        <!-- Sesgómetro comparativo -->
+        {mediosSesgo.length >= 2 && (
+          <div style="border:1px solid var(--border); padding:1rem 1.25rem; margin-bottom:1.5rem;">
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); margin-bottom:0.5rem;">Posicionamiento editorial</p>
+            <SesgometroComparativo medios={mediosSesgo} client:load />
+          </div>
+        )}
+
+        <!-- Resumen comparativo -->
+        {resumen && (
+          <div style="border-left:4px solid var(--ink); padding-left:1rem; margin-bottom:1.75rem;">
+            <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--ink-light); margin-bottom:0.35rem;">Análisis comparativo</p>
+            <p style="font-family:Georgia,serif; font-size:0.9rem; line-height:1.65; font-style:italic;">{resumen}</p>
+          </div>
+        )}
+
+        <!-- Cobertura por medio -->
+        <div style="border-top:2px solid var(--border-dark); padding-top:1rem;">
+          <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:1.25rem;">
+            Cobertura por medio
+          </h2>
+          <CoberturaArticulos articulos_por_medio={episodio.articulos_por_medio ?? {}} client:load />
+        </div>
+      </div>
+    )}
+  </div>
+</Layout>

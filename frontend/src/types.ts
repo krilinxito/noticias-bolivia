@@ -30,14 +30,29 @@ export interface ArticuloPorMedio {
   [medio: string]: Articulo[]
 }
 
-export interface Evento {
+export interface Tema {
   id: number
   titulo: string
   fecha_deteccion: string
   score_importancia: number
-  temas?: string[]
+  keywords?: string[] | null
   imagen_url?: string | null
-  articulos_por_medio: ArticuloPorMedio
+  medios: string[]
+  episodios_count: number
+}
+
+export interface Episodio {
+  id: number
+  titulo: string
+  fecha_deteccion: string
+  score_importancia: number
+  keywords?: string[] | null
+  imagen_url?: string | null
+  tema_id?: number | null
+  articulos_por_medio?: ArticuloPorMedio
+  medios?: string[]
+  sesgo_promedio?: number | null
+  medios_count?: number
 }
 
 export interface ChatMessage {

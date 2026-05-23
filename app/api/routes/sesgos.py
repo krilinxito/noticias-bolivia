@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal
-from app.models import Articulo, Evento, Medio
+from app.models import Articulo, Episodio, Medio
 
 router = APIRouter()
 
@@ -16,18 +16,18 @@ def get_db():
 def listar_sesgos(limit: int = 30, db: Session = Depends(get_db)):
     medios_map = {m.id: m.nombre for m in db.query(Medio).all()}
 
-    eventos = (
-        db.query(Evento)
-        .options(joinedload(Evento.articulos))
+    episodios = (
+        db.query(Episodio)
+        .options(joinedload(Episodio.articulos))
         .all()
     )
 
     resultado = []
-    for ev in eventos:
+    for ep in episodios:
         medios_con_sesgo = []
         resumen = None
 
-        for a in ev.articulos:
+        for a in ep.articulos:
             if not a.analisis:
                 continue
             sesgo = a.analisis.get("sesgo")
@@ -50,9 +50,9 @@ def listar_sesgos(limit: int = 30, db: Session = Depends(get_db)):
         divergencia = round(max(sesgos) - min(sesgos), 2)
 
         resultado.append({
-            "id": ev.id,
-            "titulo": ev.titulo,
-            "fecha_deteccion": ev.fecha_deteccion,
+            "id": ep.id,
+            "titulo": ep.titulo,
+            "fecha_deteccion": ep.fecha_deteccion,
             "divergencia": divergencia,
             "resumen_comparativo": resumen,
             "medios": sorted(medios_con_sesgo, key=lambda x: x["sesgo"]),

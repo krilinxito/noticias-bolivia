@@ -1,6 +1,6 @@
-import type { EventoSesgo } from '../lib/api'
+import type { EpisodioSesgo } from '../lib/api'
 
-interface Props { eventos: EventoSesgo[] }
+interface Props { eventos: EpisodioSesgo[] }
 
 function colorSesgo(s: number) {
   if (s <= -0.3) return '#8b1a1a'
@@ -8,7 +8,6 @@ function colorSesgo(s: number) {
   return '#5a4a32'
 }
 
-// Asigna arriba/abajo para evitar solapamiento de etiquetas
 function asignarLados(medios: { sesgo: number }[]): boolean[] {
   const sorted = [...medios.entries()].sort((a, b) => a[1].sesgo - b[1].sesgo)
   const arriba = new Array(medios.length).fill(false)
@@ -16,7 +15,6 @@ function asignarLados(medios: { sesgo: number }[]): boolean[] {
     const [idx] = sorted[i]
     const pct = ((sorted[i][1].sesgo + 1) / 2) * 100
     const prevPct = i > 0 ? ((sorted[i - 1][1].sesgo + 1) / 2) * 100 : -999
-    // Si está a menos de 12% del anterior, alternamos
     arriba[idx] = Math.abs(pct - prevPct) < 12 ? !arriba[sorted[i - 1][0]] : false
   }
   return arriba
@@ -42,7 +40,7 @@ export default function SesgosLista({ eventos }: Props) {
           <div key={ev.id} style={{ borderBottom: '1px solid var(--border)', borderTop: i === 0 ? '1px solid var(--border)' : 'none', padding: '1.25rem 0' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.6rem' }}>
-              <a href={`/eventos/${ev.id}`} style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '1rem', textDecoration: 'underline', color: 'var(--ink)', flex: 1, paddingRight: '1rem', lineHeight: 1.3 }}>
+              <a href={`/episodios/${ev.id}`} style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 700, fontSize: '1rem', textDecoration: 'underline', color: 'var(--ink)', flex: 1, paddingRight: '1rem', lineHeight: 1.3 }}>
                 {ev.titulo}
               </a>
               <span style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.75rem', color: 'var(--ink-light)', whiteSpace: 'nowrap' }}>
@@ -63,7 +61,6 @@ export default function SesgosLista({ eventos }: Props) {
                 return (
                   <div key={m.medio} style={{ position: 'absolute', left: `${pct}%`, top: '-7px', transform: 'translateX(-50%)', textAlign: 'center' }}>
                     <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, margin: '0 auto', border: '1.5px solid var(--paper)' }} />
-                    {/* Línea vertical conectora */}
                     <div style={{
                       position: 'absolute', left: '50%', transform: 'translateX(-50%)',
                       width: '1px', background: color, opacity: 0.35,
@@ -71,7 +68,6 @@ export default function SesgosLista({ eventos }: Props) {
                         ? { bottom: '10px', height: '18px' }
                         : { top: '10px', height: '14px' })
                     }} />
-                    {/* Etiqueta */}
                     <div style={{
                       position: 'absolute', left: '50%', transform: 'translateX(-50%)',
                       whiteSpace: 'nowrap', fontSize: '0.62rem',

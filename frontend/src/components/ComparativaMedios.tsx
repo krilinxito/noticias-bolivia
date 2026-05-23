@@ -1,4 +1,4 @@
-import type { Evento } from '../types'
+import type { Episodio } from '../types'
 import SesgometroBar from './SesgometroBar'
 
 const TONO_BADGE: Record<string, string> = {
@@ -8,7 +8,7 @@ const TONO_BADGE: Record<string, string> = {
   sin_texto: 'bg-gray-800 text-gray-500',
 }
 
-interface Props { evento: Evento }
+interface Props { evento: Episodio }
 
 export default function ComparativaMedios({ evento }: Props) {
   const medios = Object.entries(evento.articulos_por_medio)

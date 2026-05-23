@@ -76,10 +76,10 @@ function renderTexto(texto: string) {
 function MiniEventoCard({ card }: { card: Extract<CardChat, { tipo: 'evento' }> }) {
   const color = '#5a4a32'
   return (
-    <a href={`/eventos/${card.id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderTop: `3px solid ${color}`, marginTop: '0.5rem', overflow: 'hidden' }}>
+    <a href={`/episodios/${card.id}`} style={{ display: 'block', textDecoration: 'none', color: 'inherit', border: '1px solid var(--border)', borderTop: `3px solid ${color}`, marginTop: '0.5rem', overflow: 'hidden' }}>
       <div style={{ padding: '0.5rem 0.6rem' }}>
         <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.62rem', textTransform: 'uppercase', letterSpacing: '0.08em', color, marginBottom: '0.2rem' }}>
-          Evento · {card.medios.length} medios
+          Episodio · {card.medios.length} medios
         </p>
         <p style={{ fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 600, fontSize: '0.8rem', lineHeight: 1.3, marginBottom: '0.2rem' }}>
           {card.titulo}

@@ -1,12 +1,18 @@
-import type { ChatMessage, Evento, Medio, Articulo, CardChat } from '../types'
+import type { ChatMessage, Tema, Episodio, Medio, Articulo, CardChat } from '../types'
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000'
 
-export const getEventos = (limit = 50): Promise<Evento[]> =>
-  fetch(`${API_URL}/eventos?limit=${limit}`).then(r => r.json())
+export const getTemas = (limit = 50): Promise<Tema[]> =>
+  fetch(`${API_URL}/temas?limit=${limit}`).then(r => r.json())
 
-export const getEvento = (id: number): Promise<Evento> =>
-  fetch(`${API_URL}/eventos/${id}`).then(r => r.json())
+export const getTema = (id: number): Promise<Tema & { episodios: Episodio[] }> =>
+  fetch(`${API_URL}/temas/${id}`).then(r => r.json())
+
+export const getEpisodios = (limit = 200): Promise<Episodio[]> =>
+  fetch(`${API_URL}/episodios?limit=${limit}`).then(r => r.json())
+
+export const getEpisodio = (id: number): Promise<Episodio> =>
+  fetch(`${API_URL}/episodios/${id}`).then(r => r.json())
 
 export const getMedios = (): Promise<Medio[]> =>
   fetch(`${API_URL}/medios`).then(r => r.json())
@@ -25,7 +31,7 @@ export const getNoticias = (params?: {
   return fetch(`${API_URL}/noticias?${q}`).then(r => r.json())
 }
 
-export interface EventoSesgo {
+export interface EpisodioSesgo {
   id: number
   titulo: string
   fecha_deteccion: string
@@ -34,7 +40,7 @@ export interface EventoSesgo {
   medios: { medio: string; sesgo: number; tono: string | null; sesgo_descripcion: string | null }[]
 }
 
-export const getSesgos = (limit = 30): Promise<EventoSesgo[]> =>
+export const getSesgos = (limit = 30): Promise<EpisodioSesgo[]> =>
   fetch(`${API_URL}/sesgos?limit=${limit}`).then(r => r.json())
 
 export const chat = (mensaje: string, historial: ChatMessage[]): Promise<{ respuesta: string; tools_usadas: string[]; cards: CardChat[] }> =>

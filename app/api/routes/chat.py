@@ -10,7 +10,7 @@ from loguru import logger
 
 from app.analysis.gemini import _get_client, MODEL_CHAT
 from app.database import SessionLocal
-from app.models import Articulo, Evento, Medio
+from app.models import Articulo, Episodio, Medio
 
 router = APIRouter()
 
@@ -129,50 +129,50 @@ def _buscar_noticias(db: Session, query: str, medio: str = None, limit: int = 5)
 
 
 def _get_eventos(db: Session, min_importancia: float = 0.0, limit: int = 10):
-    eventos = (
-        db.query(Evento)
-        .filter(Evento.score_importancia >= min_importancia)
-        .order_by(Evento.score_importancia.desc())
+    episodios = (
+        db.query(Episodio)
+        .filter(Episodio.score_importancia >= min_importancia)
+        .order_by(Episodio.score_importancia.desc())
         .limit(limit)
         .all()
     )
-    if not eventos:
-        return "No hay eventos que cumplan los criterios.", []
+    if not episodios:
+        return "No hay episodios que cumplan los criterios.", []
 
     lineas = []
     cards = []
-    for ev in eventos:
-        arts = db.query(Articulo).filter(Articulo.evento_id == ev.id).all()
+    for ep in episodios:
+        arts = db.query(Articulo).filter(Articulo.episodio_id == ep.id).all()
         medios_objs = {
             a.medio_id: db.query(Medio).filter(Medio.id == a.medio_id).first()
             for a in arts
         }
         medios_nombres = list({m.nombre for m in medios_objs.values() if m})
-        temas = ", ".join(ev.temas or []) or "sin temas"
+        keywords = ", ".join(ep.keywords or []) or "sin keywords"
         lineas.append(
-            f"- ID {ev.id} | importancia {ev.score_importancia:.2f} | {ev.titulo[:60]}\n"
-            f"  Medios: {', '.join(medios_nombres)} | Temas: {temas}"
+            f"- ID {ep.id} | importancia {ep.score_importancia:.2f} | {ep.titulo[:60]}\n"
+            f"  Medios: {', '.join(medios_nombres)} | Keywords: {keywords}"
         )
         cards.append({
             "tipo": "evento",
-            "id": ev.id,
-            "titulo": ev.titulo,
+            "id": ep.id,
+            "titulo": ep.titulo,
             "medios": medios_nombres,
-            "score_importancia": ev.score_importancia,
-            "imagen_url": next((a.imagen_url for a in arts if a.imagen_url), None),
-            "fecha_deteccion": ev.fecha_deteccion.isoformat() + "Z" if ev.fecha_deteccion else None,
+            "score_importancia": ep.score_importancia,
+            "imagen_url": ep.imagen_url or next((a.imagen_url for a in arts if a.imagen_url), None),
+            "fecha_deteccion": ep.fecha_deteccion.isoformat() + "Z" if ep.fecha_deteccion else None,
         })
     return "\n".join(lineas), cards
 
 
 def _comparar_cobertura(db: Session, evento_id: int):
-    ev = db.query(Evento).filter(Evento.id == evento_id).first()
-    if not ev:
-        return f"Evento {evento_id} no encontrado.", []
-    arts = db.query(Articulo).filter(Articulo.evento_id == evento_id).all()
+    ep = db.query(Episodio).filter(Episodio.id == evento_id).first()
+    if not ep:
+        return f"Episodio {evento_id} no encontrado.", []
+    arts = db.query(Articulo).filter(Articulo.episodio_id == evento_id).all()
     if not arts:
-        return "El evento no tiene artículos asociados.", []
-    lineas = [f"Evento: {ev.titulo}\n"]
+        return "El episodio no tiene artículos asociados.", []
+    lineas = [f"Episodio: {ep.titulo}\n"]
     cards = []
     for a in arts:
         m = db.query(Medio).filter(Medio.id == a.medio_id).first()
@@ -202,7 +202,7 @@ def _comparar_cobertura(db: Session, evento_id: int):
 def _resumen_estadisticas(db: Session):
     total = db.query(func.count(Articulo.id)).scalar()
     con_analisis = db.query(func.count(Articulo.id)).filter(Articulo.analisis != None).scalar()
-    total_eventos = db.query(func.count(Evento.id)).scalar()
+    total_eventos = db.query(func.count(Episodio.id)).scalar()
     medios = db.query(Medio).all()
     dist = []
     for m in medios:

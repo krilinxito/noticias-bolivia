@@ -131,7 +131,7 @@ export default function CronologiaChart({ eventos, categorias, minFecha, maxFech
                         setTooltip({ x: rect.left - svg.left + rect.width / 2, y: rect.top - svg.top - 8, ev })
                       }}
                       onMouseLeave={() => setTooltip(null)}
-                      onClick={() => { window.location.href = `/eventos/${ev.id}` }}
+                      onClick={() => { window.location.href = `/episodios/${ev.id}` }}
                     />
                   )
                 })

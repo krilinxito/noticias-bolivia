@@ -1,0 +1,114 @@
+---
+import Layout from '../../layouts/Layout.astro'
+import { getTema } from '../../lib/api'
+import { detectarCategoria, CAT_COLOR } from '../../lib/categorias'
+
+const { id } = Astro.params
+let tema = null
+try { tema = await getTema(Number(id)) } catch {}
+
+const categoria = tema ? detectarCategoria(tema.keywords ?? []) : 'General'
+const catColor = CAT_COLOR[categoria] ?? '#5a4a32'
+const pct = tema ? Math.round(tema.score_importancia * 100) : 0
+
+function tiempoRelativo(fecha: string) {
+  const diff = Date.now() - new Date(fecha).getTime()
+  const h = Math.floor(diff / 3_600_000)
+  if (h < 1) return 'hace menos de 1h'
+  if (h < 24) return `hace ${h}h`
+  return `hace ${Math.floor(h / 24)}d`
+}
+
+function formatFecha(iso: string) {
+  return new Date(iso).toLocaleDateString('es-BO', {
+    timeZone: 'America/La_Paz',
+    day: 'numeric', month: 'long', year: 'numeric',
+  })
+}
+---
+<Layout title={tema?.titulo ?? 'Tema'}>
+  <div style="max-width:56rem; margin:0 auto; padding:2rem;">
+
+    {!tema ? (
+      <p style="font-style:italic; color:var(--ink-light);">Tema no encontrado.</p>
+    ) : (
+      <div>
+        <a href="/temas" style="font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light); text-decoration:none;">← Temas</a>
+
+        <!-- Cabecera del tema -->
+        <div style="border-top:4px solid var(--ink); border-bottom:1px solid var(--border-dark); margin:0.75rem 0 1.5rem; padding:1rem 0 1rem;">
+          <p style={`font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em; color:${catColor}; margin-bottom:0.4rem;`}>
+            {categoria} · {formatFecha(tema.fecha_deteccion)}
+          </p>
+          <h1 style="font-family:'Playfair Display',Georgia,serif; font-size:2rem; font-weight:700; line-height:1.2; margin:0 0 1rem;">
+            {tema.titulo}
+          </h1>
+
+          <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.75rem;">
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.08em; color:var(--ink-light);">Relevancia</span>
+            <div style="flex:1; height:6px; background:var(--border); position:relative; max-width:200px;">
+              <div style={`height:100%; background:${pct >= 60 ? '#8b1a1a' : pct >= 30 ? '#8a7a62' : '#c8b89a'}; width:${pct}%;`}></div>
+            </div>
+            <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.75rem; color:var(--ink-light);">{pct}%</span>
+          </div>
+
+          <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.78rem; color:var(--ink-light);">
+            {tema.medios.join(' · ')}
+          </p>
+        </div>
+
+        <!-- Keywords -->
+        {tema.keywords && tema.keywords.length > 0 && (
+          <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.78rem; color:var(--ink-light); font-style:italic; margin-bottom:1.25rem; border-left:2px solid var(--border); padding-left:0.75rem;">
+            {tema.keywords.join(' · ')}
+          </p>
+        )}
+
+        <!-- Lista de episodios -->
+        <div style="border-top:2px solid var(--border-dark); padding-top:1rem;">
+          <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:1.25rem;">
+            Episodios ({tema.episodios?.length ?? 0})
+          </h2>
+
+          {(!tema.episodios || tema.episodios.length === 0) ? (
+            <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; color:var(--ink-light);">Sin episodios.</p>
+          ) : (
+            <div>
+              {tema.episodios.map((ep: any, i: number) => {
+                const epPct = Math.round(ep.score_importancia * 100)
+                const epMedios = ep.medios ?? Object.keys(ep.articulos_por_medio ?? {})
+                return (
+                  <a href={`/episodios/${ep.id}`} style="display:block; text-decoration:none; color:inherit;">
+                    <div style={`border-bottom:1px solid var(--border); padding:0.875rem 0 0.875rem 0.875rem; border-left:3px solid var(--border-dark); margin-bottom:0.1rem; ${i === 0 ? 'border-top:1px solid var(--border);' : ''} transition:border-left-color 0.15s;`}
+                      onmouseover="this.style.borderLeftColor='var(--ink)'"
+                      onmouseout={`this.style.borderLeftColor='var(--border-dark)'`}>
+                      <div style="display:flex; justify-content:space-between; align-items:baseline; gap:1rem;">
+                        <div style="flex:1; min-width:0;">
+                          <p style="font-family:'Playfair Display',Georgia,serif; font-weight:600; font-size:0.92rem; line-height:1.3; margin-bottom:0.3rem;">
+                            {ep.titulo}
+                          </p>
+                          <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light);">
+                            {epMedios.join(' · ')}
+                          </p>
+                        </div>
+                        <div style="text-align:right; flex-shrink:0;">
+                          <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light); display:block;">
+                            {tiempoRelativo(ep.fecha_deteccion)}
+                          </span>
+                          <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; color:var(--ink-light);">
+                            {epPct}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </a>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+      </div>
+    )}
+  </div>
+</Layout>

@@ -1,12 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro'
 import CronologiaChart from '../components/CronologiaChart'
-import { getEventos } from '../lib/api'
+import { getEpisodios } from '../lib/api'
 import { detectarCategoria, CAT_COLOR } from '../lib/categorias'
 
-let eventos: any[] = []
+let episodios: any[] = []
 try {
-  eventos = await getEventos(200)
+  episodios = await getEpisodios(200)
 } catch {}
 
 function lerpHex(a: string, b: string, t: number): string {
@@ -21,27 +21,18 @@ function colorSesgo(s: number | null): string {
   return t < 0.5 ? lerpHex('#8b1a1a', '#8a7a62', t * 2) : lerpHex('#8a7a62', '#1a4a1a', (t - 0.5) * 2)
 }
 
-const eventosConMetrics = eventos.map((ev: any) => {
-  const todasArts: any[] = Object.values(ev.articulos_por_medio ?? {}).flat()
-  const sesgos = todasArts
-    .map((a: any) => a.analisis?.sesgo)
-    .filter((s: any): s is number => typeof s === 'number')
-  const sesgo_promedio = sesgos.length > 0
-    ? sesgos.reduce((a: number, b: number) => a + b, 0) / sesgos.length
-    : null
-  return {
-    id: ev.id,
-    titulo: ev.titulo,
-    fecha_deteccion: ev.fecha_deteccion,
-    score_importancia: ev.score_importancia ?? 0,
-    categoria: detectarCategoria(ev.temas ?? []),
-    sesgo_promedio,
-    mediosCount: Object.keys(ev.articulos_por_medio ?? {}).length,
-    mediosNombres: Object.keys(ev.articulos_por_medio ?? {}),
-  }
-})
+const episodiosConMetrics = episodios.map((ep: any) => ({
+  id: ep.id,
+  titulo: ep.titulo,
+  fecha_deteccion: ep.fecha_deteccion,
+  score_importancia: ep.score_importancia ?? 0,
+  categoria: detectarCategoria(ep.keywords ?? []),
+  sesgo_promedio: ep.sesgo_promedio ?? null,
+  mediosCount: ep.medios_count ?? ep.medios?.length ?? 0,
+  mediosNombres: ep.medios ?? [],
+}))
 
-const fechasEv = eventosConMetrics.map((e: any) => new Date(e.fecha_deteccion).getTime()).filter((t: number) => !isNaN(t))
+const fechasEv = episodiosConMetrics.map((e: any) => new Date(e.fecha_deteccion).getTime()).filter((t: number) => !isNaN(t))
 const maxMs = fechasEv.length > 0 ? Math.max(...fechasEv) + 864e5 : Date.now()
 const minEvMs = fechasEv.length > 0 ? Math.min(...fechasEv) : maxMs - 7 * 864e5
 const minMs = Math.max(minEvMs - 864e5, maxMs - 30 * 864e5)
@@ -49,12 +40,12 @@ const minFecha = new Date(minMs).toISOString()
 const maxFecha = new Date(maxMs).toISOString()
 
 const cuentaCat: Record<string, number> = {}
-for (const ev of eventosConMetrics) {
-  cuentaCat[ev.categoria] = (cuentaCat[ev.categoria] ?? 0) + 1
+for (const ep of episodiosConMetrics) {
+  cuentaCat[ep.categoria] = (cuentaCat[ep.categoria] ?? 0) + 1
 }
 const categorias = Object.entries(cuentaCat).sort((a, b) => b[1] - a[1]).map(([cat]) => cat)
 
-const eventosOrdenados = [...eventosConMetrics].sort(
+const episodiosOrdenados = [...episodiosConMetrics].sort(
   (a: any, b: any) => new Date(b.fecha_deteccion).getTime() - new Date(a.fecha_deteccion).getTime()
 )
 
@@ -74,32 +65,32 @@ function sesgoLabel(s: number | null): string {
   return `Neutral (${s >= 0 ? '+' : ''}${s.toFixed(2)})`
 }
 
-const haySuficientesDatos = eventosConMetrics.length >= 1 && fechasEv.length >= 2
+const haySuficientesDatos = episodiosConMetrics.length >= 1 && fechasEv.length >= 2
 ---
 <Layout title="Cronología">
   <div style="max-width:60rem; margin:0 auto; padding:2rem;">
 
     <div style="border-bottom:3px double var(--border-dark); margin-bottom:1.5rem; padding-bottom:0.75rem;">
-      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.6rem; font-weight:700;">Cronología de eventos</h2>
+      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.6rem; font-weight:700;">Cronología de episodios</h2>
       <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.85rem; color:var(--ink-light); margin-top:0.2rem;">
-        {eventosConMetrics.length} eventos · color = sesgo editorial · tamaño = importancia
+        {episodiosConMetrics.length} episodios · color = sesgo editorial · tamaño = importancia
       </p>
     </div>
 
     {!haySuficientesDatos ? (
       <div style="border:1px solid var(--border); padding:2rem; text-align:center; margin-bottom:1.5rem;">
         <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.9rem; color:var(--ink-light); font-style:italic;">
-          Aún no hay suficientes eventos — el gráfico se irá completando con el ciclo diario.
+          Aún no hay suficientes episodios — el gráfico se irá completando con el ciclo diario.
         </p>
       </div>
     ) : (
       <div style="border:1px solid var(--border); padding:1rem 1.25rem; margin-bottom:1.5rem;">
         <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-light); margin-bottom:0.75rem;">
-          Eventos por categoría · color = sesgo editorial · tamaño = relevancia
+          Episodios por categoría · color = sesgo editorial · tamaño = relevancia
         </p>
         <CronologiaChart
           client:load
-          eventos={eventosConMetrics}
+          eventos={episodiosConMetrics}
           categorias={categorias}
           minFecha={minFecha}
           maxFecha={maxFecha}
@@ -107,32 +98,32 @@ const haySuficientesDatos = eventosConMetrics.length >= 1 && fechasEv.length >= 
       </div>
     )}
 
-    <!-- Tarjetas de eventos -->
-    {eventosOrdenados.length === 0 ? (
-      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; color:var(--ink-light);">Sin eventos disponibles.</p>
+    <!-- Tarjetas de episodios -->
+    {episodiosOrdenados.length === 0 ? (
+      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; color:var(--ink-light);">Sin episodios disponibles.</p>
     ) : (
       <div>
         <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--ink-light); margin-bottom:1rem; border-bottom:1px solid var(--border); padding-bottom:0.5rem;">
-          Todos los eventos — más recientes primero
+          Todos los episodios — más recientes primero
         </p>
         <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(17rem, 1fr)); gap:0.85rem;">
-          {eventosOrdenados.map((ev: any) => {
-            const catColor = CAT_COLOR[ev.categoria] ?? '#5a4a32'
-            const sc = colorSesgo(ev.sesgo_promedio)
-            const borderColor = ev.sesgo_promedio !== null ? sc : 'var(--border)'
+          {episodiosOrdenados.map((ep: any) => {
+            const catColor = CAT_COLOR[ep.categoria] ?? '#5a4a32'
+            const sc = colorSesgo(ep.sesgo_promedio)
+            const borderColor = ep.sesgo_promedio !== null ? sc : 'var(--border)'
             return (
-              <a href={`/eventos/${ev.id}`} style={`display:block; border:1px solid var(--border); border-left:4px solid ${borderColor}; padding:0.85rem 1rem; text-decoration:none; color:var(--ink);`}>
+              <a href={`/episodios/${ep.id}`} style={`display:block; border:1px solid var(--border); border-left:4px solid ${borderColor}; padding:0.85rem 1rem; text-decoration:none; color:var(--ink);`}>
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.35rem;">
-                  <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.08em; color:${catColor};`}>{ev.categoria}</span>
-                  <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; color:var(--ink-light);">{ev.mediosCount} medios</span>
+                  <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.08em; color:${catColor};`}>{ep.categoria}</span>
+                  <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; color:var(--ink-light);">{ep.mediosCount} medios</span>
                 </div>
                 <p style="font-family:Georgia,serif; font-size:0.87rem; line-height:1.35; margin-bottom:0.5rem;">
-                  {ev.titulo}
+                  {ep.titulo}
                 </p>
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; color:var(--ink-light);">{formatFecha(ev.fecha_deteccion)}</span>
-                  <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; color:${ev.sesgo_promedio !== null ? borderColor : 'var(--ink-light)'};`}>
-                    {sesgoLabel(ev.sesgo_promedio)}
+                  <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; color:var(--ink-light);">{formatFecha(ep.fecha_deteccion)}</span>
+                  <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; color:${ep.sesgo_promedio !== null ? borderColor : 'var(--ink-light)'};`}>
+                    {sesgoLabel(ep.sesgo_promedio)}
                   </span>
                 </div>
               </a>

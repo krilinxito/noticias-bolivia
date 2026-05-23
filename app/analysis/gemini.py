@@ -7,13 +7,13 @@ from loguru import logger
 
 from app.config import GEMINI_API_KEY
 from app.analysis.embeddings import get_texto_analizable
-from app.models import Articulo, Evento, Medio
+from app.models import Articulo, Episodio, Medio
 
 _client = None
 
-MODEL_TONO  = "gemini-2.0-flash-lite"   # ~1500 req/día — clasificación simple, muchos artículos
-MODEL_SESGO = "gemini-2.5-flash"        # ~25 req/día — análisis comparativo, pocos eventos/ciclo
-MODEL_CHAT  = "gemini-2.5-flash-lite"   # ~20 req/día — conversación, pocas llamadas por sesión
+MODEL_TONO  = "gemini-2.5-flash-lite"   # clasificación simple, muchos artículos
+MODEL_SESGO = "gemini-2.5-flash"        # análisis comparativo, pocos eventos/ciclo
+MODEL_CHAT  = "gemini-2.5-flash-lite"   # conversación, pocas llamadas por sesión
 
 
 def _get_client():
@@ -77,12 +77,12 @@ Artículo: {articulo.titulo}. {texto[:1500]}"""
     time.sleep(4)
 
 
-def analizar_sesgo_evento(evento_id, db):
-    evento = db.query(Evento).filter(Evento.id == evento_id).first()
+def analizar_sesgo_episodio(episodio_id, db):
+    evento = db.query(Episodio).filter(Episodio.id == episodio_id).first()
     if not evento:
         return
 
-    articulos = db.query(Articulo).filter(Articulo.evento_id == evento_id).all()
+    articulos = db.query(Articulo).filter(Articulo.episodio_id == episodio_id).all()
 
     por_medio = {}
     for art in articulos:
@@ -130,5 +130,5 @@ Donde sesgo va de -1.0 (muy negativo) a 1.0 (muy positivo).
         db.add(art)
 
     db.commit()
-    logger.info(f"Sesgo analizado evento {evento_id}: {len(por_medio)} medios")
+    logger.info(f"Sesgo analizado episodio {episodio_id}: {len(por_medio)} medios")
     time.sleep(4)

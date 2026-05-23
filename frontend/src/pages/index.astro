@@ -1,17 +1,17 @@
 ---
 import Layout from '../layouts/Layout.astro'
 import PortadaContenido from '../components/PortadaContenido'
-import { getEventos } from '../lib/api'
+import { getTemas } from '../lib/api'
 import { detectarCategoria } from '../lib/categorias'
 
-let eventos: any[] = []
-try { eventos = await getEventos(80) } catch {}
+let temas: any[] = []
+try { temas = await getTemas(80) } catch {}
 
-const eventosConCat = eventos.map((ev: any) => ({
-  ...ev,
-  categoria: detectarCategoria(ev.temas ?? []),
+const temasConCat = temas.map((t: any) => ({
+  ...t,
+  categoria: detectarCategoria(t.keywords ?? []),
 }))
 ---
 <Layout title="Portada">
-  <PortadaContenido eventos={eventosConCat} client:load />
+  <PortadaContenido temas={temasConCat} client:load />
 </Layout>

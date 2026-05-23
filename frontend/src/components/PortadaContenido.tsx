@@ -1,14 +1,14 @@
 import { useState } from 'react'
-import type { Evento } from '../types'
+import type { Tema } from '../types'
 import { detectarCategoria, CAT_COLOR } from '../lib/categorias'
 import EventoCard from './EventoCard'
 
-interface EventoEnriquecido extends Evento {
+interface TemaEnriquecido extends Tema {
   categoria: string
 }
 
 interface Props {
-  eventos: EventoEnriquecido[]
+  temas: TemaEnriquecido[]
 }
 
 function tiempoRelativo(fecha: string) {
@@ -19,22 +19,22 @@ function tiempoRelativo(fecha: string) {
   return `hace ${Math.floor(h / 24)}d`
 }
 
-export default function PortadaContenido({ eventos }: Props) {
+export default function PortadaContenido({ temas }: Props) {
   const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null)
   const [imgDestacadoError, setImgDestacadoError] = useState(false)
 
-  const categorias = [...new Set(eventos.map(e => e.categoria))].sort((a, b) => {
-    const na = eventos.filter(e => e.categoria === a).length
-    const nb = eventos.filter(e => e.categoria === b).length
+  const categorias = [...new Set(temas.map(e => e.categoria))].sort((a, b) => {
+    const na = temas.filter(e => e.categoria === a).length
+    const nb = temas.filter(e => e.categoria === b).length
     return nb - na
   })
 
-  const eventosFiltrados = categoriaActiva
-    ? eventos.filter(e => e.categoria === categoriaActiva)
-    : eventos
+  const temasFiltrados = categoriaActiva
+    ? temas.filter(e => e.categoria === categoriaActiva)
+    : temas
 
-  const destacado = eventosFiltrados[0]
-  const resto = eventosFiltrados.slice(1)
+  const destacado = temasFiltrados[0]
+  const resto = temasFiltrados.slice(1)
 
   return (
     <div style={{ maxWidth: '60rem', margin: '0 auto', padding: '1.5rem 2rem' }}>
@@ -82,15 +82,15 @@ export default function PortadaContenido({ eventos }: Props) {
         })}
       </div>
 
-      {eventosFiltrados.length === 0 && (
+      {temasFiltrados.length === 0 && (
         <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontStyle: 'italic', color: 'var(--ink-light)' }}>
-          Sin eventos disponibles.
+          Sin temas disponibles.
         </p>
       )}
 
-      {/* Evento destacado */}
+      {/* Tema destacado */}
       {destacado && (
-        <a href={`/eventos/${destacado.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '1.5rem' }}>
+        <a href={`/temas/${destacado.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '1.5rem' }}>
           <div style={{ border: '1px solid var(--border)', borderTop: `4px solid ${CAT_COLOR[destacado.categoria] ?? '#5a4a32'}`, display: 'grid', gridTemplateColumns: destacado.imagen_url && !imgDestacadoError ? '38% 1fr' : '1fr', overflow: 'hidden' }}>
             {destacado.imagen_url && !imgDestacadoError && (
               <img
@@ -103,24 +103,24 @@ export default function PortadaContenido({ eventos }: Props) {
             )}
             <div style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <span style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: CAT_COLOR[destacado.categoria] ?? '#5a4a32', marginBottom: '0.4rem', display: 'block' }}>
-                {destacado.categoria} · Evento principal
+                {destacado.categoria} · Tema principal
               </span>
               <h2 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: '1.5rem', fontWeight: 700, lineHeight: 1.2, marginBottom: '0.6rem' }}>
                 {destacado.titulo}
               </h2>
               <p style={{ fontFamily: "'IM Fell English', Georgia, serif", fontSize: '0.78rem', color: 'var(--ink-light)' }}>
-                {Object.keys(destacado.articulos_por_medio).join(' · ')} · {Math.round(destacado.score_importancia * 100)}% importancia · {tiempoRelativo(destacado.fecha_deteccion)}
+                {destacado.medios.join(' · ')} · {Math.round(destacado.score_importancia * 100)}% importancia · {tiempoRelativo(destacado.fecha_deteccion)}
               </p>
             </div>
           </div>
         </a>
       )}
 
-      {/* Grid de eventos */}
+      {/* Grid de temas */}
       {resto.length > 0 && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(16rem, 1fr))', gap: '1rem' }}>
-          {resto.map(ev => (
-            <EventoCard key={ev.id} evento={ev} />
+          {resto.map(t => (
+            <EventoCard key={t.id} tema={t} />
           ))}
         </div>
       )}
