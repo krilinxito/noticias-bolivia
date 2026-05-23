@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import re
 
 import numpy as np
 from sqlalchemy import or_
@@ -8,6 +9,23 @@ from sklearn.metrics.pairwise import cosine_similarity
 from loguru import logger
 
 from app.models import Articulo, Evento
+
+_STOP_ES = {
+    'de', 'la', 'el', 'en', 'y', 'a', 'que', 'del', 'los', 'las', 'un', 'una',
+    'por', 'con', 'se', 'no', 'es', 'al', 'su', 'sus', 'lo', 'para', 'como',
+    'más', 'pero', 'este', 'esta', 'ese', 'esa', 'esos', 'estas', 'son', 'fue',
+    'han', 'hay', 'sobre', 'tras', 'ante', 'bajo', 'desde', 'hasta', 'entre',
+    'sin', 'según', 'durante', 'también', 'ya', 'o', 'e', 'ni', 'si', 'le',
+    'les', 'nos', 'me', 'te', 'su', 'era', 'ser', 'está', 'están', 'será',
+}
+
+
+def _palabras_titulo(titulo: str) -> set:
+    """Palabras significativas del título (≥4 chars, sin stop words)."""
+    return {
+        p for p in re.findall(r'[a-záéíóúüñ]+', titulo.lower())
+        if len(p) >= 4 and p not in _STOP_ES
+    }
 
 _model = None
 _kw_model = None
@@ -85,30 +103,48 @@ def agrupar_en_eventos(db):
 
     logger.info(f"Agrupando {len(nuevos)} artículos nuevos...")
 
-    # Artículo representativo de cada evento reciente (últimos 7 días)
+    # Centroide promedio de cada evento reciente (últimos 7 días)
     desde_evento = datetime.utcnow() - timedelta(days=7)
     eventos_recientes = (
         db.query(Evento)
         .filter(Evento.fecha_deteccion >= desde_evento)
         .all()
     )
-    art_por_evento = {}
+    arts_por_evento = {}
     for ev in eventos_recientes:
         arts_ev = db.query(Articulo).filter(Articulo.evento_id == ev.id).all()
         if arts_ev:
-            art_por_evento[ev.id] = max(arts_ev, key=_longitud_texto)
+            arts_por_evento[ev.id] = arts_ev
 
-    existing_ids = list(art_por_evento.keys())
-    arts_existentes = [art_por_evento[eid] for eid in existing_ids]
+    existing_ids = list(arts_por_evento.keys())
 
-    # Embeddings: nuevos + representativos de eventos existentes
+    # Embeddings: nuevos primero, luego todos los artículos de eventos existentes
     model = _get_model()
-    all_arts = nuevos + arts_existentes
-    all_textos = [a.titulo + " " + (get_texto_analizable(a) or "") for a in all_arts]
+    nuevos_textos = [a.titulo + " " + (get_texto_analizable(a) or "") for a in nuevos]
+
+    # Calcular centroides de eventos existentes a partir del promedio de sus artículos
+    ev_textos_planos = []
+    ev_slice = []  # (start, end) en ev_textos_planos para cada evento
+    for eid in existing_ids:
+        arts = arts_por_evento[eid]
+        textos = [a.titulo + " " + (get_texto_analizable(a) or "") for a in arts]
+        ev_slice.append((len(ev_textos_planos), len(ev_textos_planos) + len(textos)))
+        ev_textos_planos.extend(textos)
+
+    all_textos = nuevos_textos + ev_textos_planos
     all_embeddings = model.encode(all_textos, show_progress_bar=False)
 
     nuevos_emb = all_embeddings[:len(nuevos)]
-    existing_emb = all_embeddings[len(nuevos):]
+    ev_all_emb = all_embeddings[len(nuevos):]
+
+    # Centroide = media de embeddings de todos los artículos del evento
+    if existing_ids:
+        existing_emb = np.array([
+            np.mean(ev_all_emb[s:e], axis=0)
+            for s, e in ev_slice
+        ])
+    else:
+        existing_emb = np.array([])
 
     # Union-Find solo entre artículos nuevos
     sim_matrix = cosine_similarity(nuevos_emb)
@@ -125,9 +161,11 @@ def agrupar_en_eventos(db):
         if px != py:
             parent[px] = py
 
+    palabras_nuevos = [_palabras_titulo(a.titulo) for a in nuevos]
+
     for i in range(len(nuevos)):
         for j in range(i + 1, len(nuevos)):
-            if sim_matrix[i][j] > 0.65:
+            if sim_matrix[i][j] > 0.65 and palabras_nuevos[i] & palabras_nuevos[j]:
                 union(i, j)
 
     grupos = {}
@@ -147,25 +185,39 @@ def agrupar_en_eventos(db):
             sims = cosine_similarity(cluster_emb, existing_emb)[0]
             best_idx = int(np.argmax(sims))
             if sims[best_idx] > 0.65:
-                evento_id = existing_ids[best_idx]
-                for art in grupo_arts:
-                    art.evento_id = evento_id
-                    db.add(art)
-                arts_agregados += len(grupo_arts)
-                continue
+                # Verificar solapamiento de palabras clave con el evento candidato
+                cluster_palabras = set().union(*[_palabras_titulo(a.titulo) for a in grupo_arts])
+                ev_palabras = set().union(*[
+                    _palabras_titulo(a.titulo)
+                    for a in arts_por_evento[existing_ids[best_idx]]
+                ])
+                if cluster_palabras & ev_palabras:
+                    evento_id = existing_ids[best_idx]
+                    for art in grupo_arts:
+                        art.evento_id = evento_id
+                        db.add(art)
+                    arts_agregados += len(grupo_arts)
+                    continue
 
         # Crear evento nuevo solo si 2+ medios distintos
         medios_distintos = len({a.medio_id for a in grupo_arts})
         if medios_distintos < 2:
             continue
 
-        art_principal = max(grupo_arts, key=_longitud_texto)
+        grupo_embs = np.array([nuevos_emb[i] for i in indices])
+        sims_centroid = cosine_similarity(cluster_emb, grupo_embs)[0]
+        art_principal = grupo_arts[int(np.argmax(sims_centroid))]
         score = medios_distintos / 6.0
         textos_grupo = [get_texto_analizable(a) for a in grupo_arts]
         temas = _extraer_temas([t for t in textos_grupo if t])
 
+        # Imagen: art_principal primero; si no tiene, primer artículo del grupo con imagen
+        imagen = art_principal.imagen_url or next(
+            (a.imagen_url for a in grupo_arts if a.imagen_url), None
+        )
         evento = Evento(
             titulo=art_principal.titulo,
+            imagen_url=imagen,
             score_importancia=score,
             temas=temas,
         )

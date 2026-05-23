@@ -44,7 +44,7 @@ def job_analisis():
                 break
         logger.info(f"Tono: {tono_ok}/{len(arts)} artículos analizados")
 
-        # Sesgo: todos los eventos con 2+ medios que aún no tienen sesgo
+        # Sesgo: eventos con 2+ medios que ya tienen tono analizado
         candidatos = (
             db.query(Articulo.evento_id)
             .filter(

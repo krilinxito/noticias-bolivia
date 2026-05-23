@@ -23,6 +23,7 @@ class Evento(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     titulo = Column(String)
+    imagen_url = Column(String, nullable=True)
     fecha_deteccion = Column(DateTime, default=datetime.utcnow)
     score_importancia = Column(Float, default=0.0)
     temas = Column(JSON, nullable=True)

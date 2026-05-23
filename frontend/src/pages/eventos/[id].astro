@@ -1,6 +1,7 @@
 ---
 import Layout from '../../layouts/Layout.astro'
 import SesgometroComparativo from '../../components/SesgometroComparativo'
+import CoberturaArticulos from '../../components/CoberturaArticulos'
 import { getEvento } from '../../lib/api'
 
 const { id } = Astro.params
@@ -20,12 +21,6 @@ const mediosSesgo = medios
 const resumen = medios.length > 0 ? (medios[0][1] as any[])[0]?.analisis?.resumen_comparativo : null
 const pct = evento ? Math.round(evento.score_importancia * 100) : 0
 
-const TONO_ES: Record<string, string> = {
-  positivo: 'positivo', negativo: 'negativo', neutral: 'neutral', sin_texto: 'sin texto'
-}
-const TONO_COLOR: Record<string, string> = {
-  positivo: '#1a4a1a', negativo: '#8b1a1a', neutral: '#5a4a32', sin_texto: '#9a8a72'
-}
 ---
 <Layout title={evento?.titulo ?? 'Evento'}>
   <div style="max-width:56rem; margin:0 auto; padding:2rem;">
@@ -83,66 +78,7 @@ const TONO_COLOR: Record<string, string> = {
           <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:1.25rem;">
             Cobertura por medio
           </h2>
-
-          {medios.map(([nombre, arts]: [string, any[]]) => {
-            const art = arts[0]
-            const analisis = art?.analisis
-            const sesgo: number | null = analisis?.sesgo ?? null
-            const tonoRaw: string = analisis?.tono ?? 'sin_texto'
-            const tono: string | null = (tonoRaw && tonoRaw !== 'sin_texto') ? tonoRaw : null
-            const extracto: string = art?.cuerpo ? art.cuerpo.slice(0, 320) : ''
-            const tonoColor = tono ? (TONO_COLOR[tono] ?? '#5a4a32') : '#5a4a32'
-            const tonoLabel = tono ? (TONO_ES[tono] ?? tono) : null
-
-            return (
-              <div style="border-bottom:1px solid var(--border); padding:1.25rem 0; display:grid; grid-template-columns:8rem 1fr; gap:1.25rem;">
-                <!-- Columna izquierda: medio + indicadores -->
-                <div>
-                  <p style="font-family:'Playfair Display',Georgia,serif; font-weight:700; font-size:0.9rem; margin-bottom:0.35rem;">{nombre}</p>
-
-                  <!-- Badge de tono (solo si hay análisis real) -->
-                  {tono && tonoLabel && (
-                    <div style={`display:inline-block; border:1px solid ${tonoColor}; padding:0.1rem 0.4rem; margin-bottom:0.4rem;`}>
-                      <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; color:${tonoColor};`}>{tonoLabel}</span>
-                    </div>
-                  )}
-
-                  <!-- Barra de sesgo -->
-                  {sesgo !== null && (
-                    <div style="margin-top:0.4rem;">
-                      <div style="height:4px; background:var(--border); position:relative; margin-bottom:0.2rem;">
-                        <div style="position:absolute; left:50%; top:-2px; width:1px; height:8px; background:var(--border-dark);"></div>
-                        <div style={`position:absolute; height:4px; background:${sesgo < 0 ? '#8b1a1a' : '#1a4a1a'}; ${sesgo < 0 ? `right:${50}%; width:${Math.abs(sesgo) * 50}%;` : `left:50%; width:${sesgo * 50}%;`}`}></div>
-                      </div>
-                      <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.65rem; color:var(--ink-light);">
-                        {sesgo > 0 ? '+' : ''}{sesgo.toFixed(2)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <!-- Columna derecha: artículo -->
-                <div>
-                  {art && (
-                    <a href={art.url} target="_blank" rel="noreferrer"
-                      style="font-family:'Playfair Display',Georgia,serif; font-weight:600; font-size:0.95rem; text-decoration:underline; text-underline-offset:3px; display:block; margin-bottom:0.5rem; color:var(--ink); line-height:1.35;">
-                      {art.titulo}
-                    </a>
-                  )}
-                  {extracto && (
-                    <p style="font-family:Georgia,serif; font-size:0.82rem; line-height:1.6; color:var(--ink-light);">
-                      {extracto}{art?.cuerpo && art.cuerpo.length > 320 ? '…' : ''}
-                    </p>
-                  )}
-                  {analisis?.sesgo_descripcion && (
-                    <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.78rem; color:var(--ink-light); margin-top:0.5rem; border-left:2px solid var(--border); padding-left:0.6rem;">
-                      {analisis.sesgo_descripcion}
-                    </p>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          <CoberturaArticulos articulos_por_medio={evento.articulos_por_medio} client:load />
         </div>
       </div>
     )}
