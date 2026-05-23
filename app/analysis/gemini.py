@@ -33,15 +33,23 @@ def _parsear_json(texto):
         return {"error": "parse_failed"}
 
 
-def _generar(modelo, prompt):
-    response = _get_client().models.generate_content(
-        model=modelo,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.1,
-        ),
-    )
-    return response.text
+def _generar(modelo, prompt, max_reintentos=3):
+    for intento in range(max_reintentos):
+        try:
+            response = _get_client().models.generate_content(
+                model=modelo,
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.1),
+            )
+            return response.text
+        except Exception as e:
+            msg = str(e)
+            if ("429" in msg or "RESOURCE_EXHAUSTED" in msg) and intento < max_reintentos - 1:
+                espera = 65 * (intento + 1)
+                logger.warning(f"Rate limit ({modelo}), reintentando en {espera}s... ({intento+1}/{max_reintentos-1})")
+                time.sleep(espera)
+                continue
+            raise
 
 
 def analizar_articulo(articulo, db):
@@ -93,7 +101,7 @@ def analizar_sesgo_episodio(episodio_id, db):
                 por_medio[medio.nombre] = (art, texto)
 
     if len(por_medio) < 2:
-        logger.info(f"Evento {evento_id}: menos de 2 medios con texto, skip sesgo")
+        logger.info(f"Episodio {episodio_id}: menos de 2 medios con texto, skip sesgo")
         return
 
     bloques = [
@@ -122,7 +130,7 @@ Donde sesgo va de -1.0 (muy negativo) a 1.0 (muy positivo).
     sesgo_por_medio = resultado.get("sesgo_por_medio", {})
     for nombre, (art, _) in por_medio.items():
         datos_sesgo = sesgo_por_medio.get(nombre, {})
-        analisis_actual = art.analisis or {}
+        analisis_actual = dict(art.analisis or {})
         analisis_actual["sesgo"] = datos_sesgo.get("sesgo")
         analisis_actual["sesgo_descripcion"] = datos_sesgo.get("descripcion")
         analisis_actual["resumen_comparativo"] = resultado.get("resumen_comparativo")

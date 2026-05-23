@@ -84,6 +84,7 @@ def _serializar_tema(tema, medios, incluir_episodios=False):
         "imagen_url": imagen,
         "medios": sorted(todos_medios),
         "episodios_count": len(tema.episodios),
+        "primer_episodio_id": tema.episodios[0].id if len(tema.episodios) == 1 else None,
     }
     if incluir_episodios:
         base["episodios"] = [

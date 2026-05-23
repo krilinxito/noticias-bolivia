@@ -15,9 +15,12 @@ export default function EventoCard({ tema }: Props) {
   const pct = Math.round(tema.score_importancia * 100)
   const categoria = detectarCategoria(tema.keywords ?? [])
   const catColor = CAT_COLOR[categoria] ?? '#5a4a32'
+  const href = tema.episodios_count === 1 && tema.primer_episodio_id
+    ? `/episodios/${tema.primer_episodio_id}`
+    : `/temas/${tema.id}`
 
   return (
-    <a href={`/temas/${tema.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+    <a href={href} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
       <div style={{ border: '1px solid var(--border)', overflow: 'hidden' }}>
         <div style={{
           height: '130px',

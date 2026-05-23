@@ -68,7 +68,7 @@ function tiempoRelativo(fecha: string) {
                   <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:${color}; display:block; margin-bottom:0.15rem;`}>
                     {t.categoria}
                   </span>
-                  <a href={`/temas/${t.id}`} style="font-family:'Playfair Display',Georgia,serif; font-weight:600; font-size:0.95rem; line-height:1.3; color:var(--ink); text-decoration:none; display:block;">
+                  <a href={t.episodios_count === 1 && t.primer_episodio_id ? `/episodios/${t.primer_episodio_id}` : `/temas/${t.id}`} style="font-family:'Playfair Display',Georgia,serif; font-weight:600; font-size:0.95rem; line-height:1.3; color:var(--ink); text-decoration:none; display:block;">
                     {t.titulo}
                   </a>
                   <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light); margin-top:0.2rem;">

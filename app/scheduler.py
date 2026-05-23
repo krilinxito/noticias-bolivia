@@ -49,6 +49,12 @@ def job_analisis():
                 break
         logger.info(f"Tono: {tono_ok}/{len(arts)} artículos analizados")
 
+        # Pausa para que el rate limit por minuto de Gemini se resetee
+        if tono_ok > 0:
+            import time as _time
+            logger.info("Esperando 65s antes del análisis de sesgo (rate limit)...")
+            _time.sleep(65)
+
         # Sesgo: episodios con 2+ medios que ya tienen tono analizado
         candidatos = (
             db.query(Articulo.episodio_id)

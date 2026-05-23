@@ -90,7 +90,7 @@ export default function PortadaContenido({ temas }: Props) {
 
       {/* Tema destacado */}
       {destacado && (
-        <a href={`/temas/${destacado.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '1.5rem' }}>
+        <a href={destacado.episodios_count === 1 && destacado.primer_episodio_id ? `/episodios/${destacado.primer_episodio_id}` : `/temas/${destacado.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block', marginBottom: '1.5rem' }}>
           <div style={{ border: '1px solid var(--border)', borderTop: `4px solid ${CAT_COLOR[destacado.categoria] ?? '#5a4a32'}`, display: 'grid', gridTemplateColumns: destacado.imagen_url && !imgDestacadoError ? '38% 1fr' : '1fr', overflow: 'hidden' }}>
             {destacado.imagen_url && !imgDestacadoError && (
               <img

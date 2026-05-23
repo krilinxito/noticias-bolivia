@@ -39,6 +39,7 @@ export interface Tema {
   imagen_url?: string | null
   medios: string[]
   episodios_count: number
+  primer_episodio_id?: number | null
 }
 
 export interface Episodio {
