@@ -94,7 +94,7 @@ def analizar_sesgo_episodio(episodio_id, db):
 
     por_medio = {}
     for art in articulos:
-        texto = get_texto_analizable(art)
+        texto = get_texto_analizable(art) or art.titulo
         if texto:
             medio = db.query(Medio).filter(Medio.id == art.medio_id).first()
             if medio:
