@@ -30,26 +30,13 @@ export interface ArticuloPorMedio {
   [medio: string]: Articulo[]
 }
 
-export interface Tema {
+export interface Evento {
   id: number
   titulo: string
   fecha_deteccion: string
   score_importancia: number
   keywords?: string[] | null
   imagen_url?: string | null
-  medios: string[]
-  episodios_count: number
-  primer_episodio_id?: number | null
-}
-
-export interface Episodio {
-  id: number
-  titulo: string
-  fecha_deteccion: string
-  score_importancia: number
-  keywords?: string[] | null
-  imagen_url?: string | null
-  tema_id?: number | null
   articulos_por_medio?: ArticuloPorMedio
   medios?: string[]
   sesgo_promedio?: number | null

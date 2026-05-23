@@ -7,7 +7,7 @@ from loguru import logger
 
 from app.config import GEMINI_API_KEY
 from app.analysis.embeddings import get_texto_analizable
-from app.models import Articulo, Episodio, Medio
+from app.models import Articulo, Evento, Medio
 
 _client = None
 
@@ -85,12 +85,12 @@ Artículo: {articulo.titulo}. {texto[:1500]}"""
     time.sleep(4)
 
 
-def analizar_sesgo_episodio(episodio_id, db):
-    evento = db.query(Episodio).filter(Episodio.id == episodio_id).first()
+def analizar_sesgo_evento(evento_id, db):
+    evento = db.query(Evento).filter(Evento.id == evento_id).first()
     if not evento:
         return
 
-    articulos = db.query(Articulo).filter(Articulo.episodio_id == episodio_id).all()
+    articulos = db.query(Articulo).filter(Articulo.evento_id == evento_id).all()
 
     por_medio = {}
     for art in articulos:
@@ -101,7 +101,7 @@ def analizar_sesgo_episodio(episodio_id, db):
                 por_medio[medio.nombre] = (art, texto)
 
     if len(por_medio) < 2:
-        logger.info(f"Episodio {episodio_id}: menos de 2 medios con texto, skip sesgo")
+        logger.info(f"Evento {evento_id}: menos de 2 medios con texto, skip sesgo")
         return
 
     bloques = [
@@ -124,7 +124,7 @@ Donde sesgo va de -1.0 (muy negativo) a 1.0 (muy positivo).
         if "429" in msg or "RESOURCE_EXHAUSTED" in msg:
             logger.warning(f"Cuota diaria agotada (sesgo), deteniendo análisis de eventos")
             raise
-        logger.error(f"Error Gemini sesgo episodio {episodio_id}: {e}")
+        logger.error(f"Error Gemini sesgo evento {evento_id}: {e}")
         return
 
     sesgo_por_medio = resultado.get("sesgo_por_medio", {})
@@ -138,5 +138,5 @@ Donde sesgo va de -1.0 (muy negativo) a 1.0 (muy positivo).
         db.add(art)
 
     db.commit()
-    logger.info(f"Sesgo analizado episodio {episodio_id}: {len(por_medio)} medios")
+    logger.info(f"Sesgo analizado evento {evento_id}: {len(por_medio)} medios")
     time.sleep(4)

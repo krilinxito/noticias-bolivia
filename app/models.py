@@ -18,8 +18,8 @@ class Medio(Base):
     articulos = relationship("Articulo", back_populates="medio")
 
 
-class Tema(Base):
-    __tablename__ = "temas"
+class Evento(Base):
+    __tablename__ = "eventos"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     titulo = Column(String)
@@ -28,22 +28,7 @@ class Tema(Base):
     score_importancia = Column(Float, default=0.0)
     keywords = Column(JSON, nullable=True)
 
-    episodios = relationship("Episodio", back_populates="tema")
-
-
-class Episodio(Base):
-    __tablename__ = "episodios"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    titulo = Column(String)
-    imagen_url = Column(String, nullable=True)
-    fecha_deteccion = Column(DateTime, default=datetime.utcnow)
-    score_importancia = Column(Float, default=0.0)
-    keywords = Column(JSON, nullable=True)
-    tema_id = Column(Integer, ForeignKey("temas.id"), nullable=True)
-
-    tema = relationship("Tema", back_populates="episodios")
-    articulos = relationship("Articulo", back_populates="episodio")
+    articulos = relationship("Articulo", back_populates="evento")
 
 
 class Articulo(Base):
@@ -51,7 +36,7 @@ class Articulo(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     medio_id = Column(Integer, ForeignKey("medios.id"), nullable=False)
-    episodio_id = Column(Integer, ForeignKey("episodios.id"), nullable=True)
+    evento_id = Column(Integer, ForeignKey("eventos.id"), nullable=True)
     titulo = Column(String, nullable=False)
     url = Column(String, unique=True, nullable=False)
     resumen_rss = Column(Text, nullable=True)
@@ -62,4 +47,4 @@ class Articulo(Base):
     imagen_url = Column(String, nullable=True)
 
     medio = relationship("Medio", back_populates="articulos")
-    episodio = relationship("Episodio", back_populates="articulos")
+    evento = relationship("Evento", back_populates="articulos")

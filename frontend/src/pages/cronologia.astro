@@ -1,12 +1,12 @@
 ---
 import Layout from '../layouts/Layout.astro'
 import CronologiaChart from '../components/CronologiaChart'
-import { getEpisodios } from '../lib/api'
+import { getEventos } from '../lib/api'
 import { detectarCategoria, CAT_COLOR } from '../lib/categorias'
 
 let episodios: any[] = []
 try {
-  episodios = await getEpisodios(200)
+  episodios = await getEventos(200)
 } catch {}
 
 function lerpHex(a: string, b: string, t: number): string {
@@ -112,7 +112,7 @@ const haySuficientesDatos = episodiosConMetrics.length >= 1 && fechasEv.length >
             const sc = colorSesgo(ep.sesgo_promedio)
             const borderColor = ep.sesgo_promedio !== null ? sc : 'var(--border)'
             return (
-              <a href={`/episodios/${ep.id}`} style={`display:block; border:1px solid var(--border); border-left:4px solid ${borderColor}; padding:0.85rem 1rem; text-decoration:none; color:var(--ink);`}>
+              <a href={`/eventos/${ep.id}`} style={`display:block; border:1px solid var(--border); border-left:4px solid ${borderColor}; padding:0.85rem 1rem; text-decoration:none; color:var(--ink);`}>
                 <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:0.35rem;">
                   <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; text-transform:uppercase; letter-spacing:0.08em; color:${catColor};`}>{ep.categoria}</span>
                   <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.62rem; color:var(--ink-light);">{ep.mediosCount} medios</span>

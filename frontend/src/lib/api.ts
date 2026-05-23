@@ -1,18 +1,12 @@
-import type { ChatMessage, Tema, Episodio, Medio, Articulo, CardChat } from '../types'
+import type { ChatMessage, Evento, Medio, Articulo, CardChat } from '../types'
 
 const API_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:8000'
 
-export const getTemas = (limit = 50): Promise<Tema[]> =>
-  fetch(`${API_URL}/temas?limit=${limit}`).then(r => r.json())
+export const getEventos = (limit = 200): Promise<Evento[]> =>
+  fetch(`${API_URL}/eventos?limit=${limit}`).then(r => r.json())
 
-export const getTema = (id: number): Promise<Tema & { episodios: Episodio[] }> =>
-  fetch(`${API_URL}/temas/${id}`).then(r => r.json())
-
-export const getEpisodios = (limit = 200): Promise<Episodio[]> =>
-  fetch(`${API_URL}/episodios?limit=${limit}`).then(r => r.json())
-
-export const getEpisodio = (id: number): Promise<Episodio> =>
-  fetch(`${API_URL}/episodios/${id}`).then(r => r.json())
+export const getEvento = (id: number): Promise<Evento> =>
+  fetch(`${API_URL}/eventos/${id}`).then(r => r.json())
 
 export const getMedios = (): Promise<Medio[]> =>
   fetch(`${API_URL}/medios`).then(r => r.json())

@@ -10,7 +10,7 @@ from loguru import logger
 
 from app.analysis.gemini import _get_client, MODEL_CHAT
 from app.database import SessionLocal
-from app.models import Articulo, Episodio, Medio
+from app.models import Articulo, Evento, Medio
 
 router = APIRouter()
 
@@ -130,19 +130,19 @@ def _buscar_noticias(db: Session, query: str, medio: str = None, limit: int = 5)
 
 def _get_eventos(db: Session, min_importancia: float = 0.0, limit: int = 10):
     episodios = (
-        db.query(Episodio)
-        .filter(Episodio.score_importancia >= min_importancia)
-        .order_by(Episodio.score_importancia.desc())
+        db.query(Evento)
+        .filter(Evento.score_importancia >= min_importancia)
+        .order_by(Evento.score_importancia.desc())
         .limit(limit)
         .all()
     )
     if not episodios:
-        return "No hay episodios que cumplan los criterios.", []
+        return "No hay eventos que cumplan los criterios.", []
 
     lineas = []
     cards = []
     for ep in episodios:
-        arts = db.query(Articulo).filter(Articulo.episodio_id == ep.id).all()
+        arts = db.query(Articulo).filter(Articulo.evento_id == ep.id).all()
         medios_objs = {
             a.medio_id: db.query(Medio).filter(Medio.id == a.medio_id).first()
             for a in arts
@@ -166,13 +166,13 @@ def _get_eventos(db: Session, min_importancia: float = 0.0, limit: int = 10):
 
 
 def _comparar_cobertura(db: Session, evento_id: int):
-    ep = db.query(Episodio).filter(Episodio.id == evento_id).first()
+    ep = db.query(Evento).filter(Evento.id == evento_id).first()
     if not ep:
-        return f"Episodio {evento_id} no encontrado.", []
-    arts = db.query(Articulo).filter(Articulo.episodio_id == evento_id).all()
+        return f"Evento {evento_id} no encontrado.", []
+    arts = db.query(Articulo).filter(Articulo.evento_id == evento_id).all()
     if not arts:
-        return "El episodio no tiene artículos asociados.", []
-    lineas = [f"Episodio: {ep.titulo}\n"]
+        return "El evento no tiene artículos asociados.", []
+    lineas = [f"Evento: {ep.titulo}\n"]
     cards = []
     for a in arts:
         m = db.query(Medio).filter(Medio.id == a.medio_id).first()
@@ -202,7 +202,7 @@ def _comparar_cobertura(db: Session, evento_id: int):
 def _resumen_estadisticas(db: Session):
     total = db.query(func.count(Articulo.id)).scalar()
     con_analisis = db.query(func.count(Articulo.id)).filter(Articulo.analisis != None).scalar()
-    total_eventos = db.query(func.count(Episodio.id)).scalar()
+    total_eventos = db.query(func.count(Evento.id)).scalar()
     medios = db.query(Medio).all()
     dist = []
     for m in medios:

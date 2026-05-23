@@ -3,7 +3,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal
-from app.models import Articulo, Episodio, Medio
+from app.models import Articulo, Evento, Medio
 
 router = APIRouter()
 
@@ -15,7 +15,7 @@ def get_db():
 
 @router.get("")
 def estadisticas(db: Session = Depends(get_db)):
-    total_episodios = db.query(Episodio).count()
+    total_episodios = db.query(Evento).count()
     total_articulos = db.query(Articulo).count()
     articulos_analizados = db.query(Articulo).filter(Articulo.analisis.isnot(None)).count()
 
@@ -32,7 +32,7 @@ def estadisticas(db: Session = Depends(get_db)):
         medio_mas_activo = {"nombre": None, "total": 0}
 
     episodio_mas_divergente = None
-    episodios = db.query(Episodio).options(joinedload(Episodio.articulos)).all()
+    episodios = db.query(Evento).options(joinedload(Evento.articulos)).all()
     mejor_div = -1.0
     for ep in episodios:
         sesgos = [

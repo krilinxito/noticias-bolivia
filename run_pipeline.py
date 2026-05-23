@@ -2,7 +2,7 @@
 Ejecuta el pipeline completo manualmente:
   1. (Opcional) Reset de la BD
   2. Scraping de los 6 medios
-  3. Análisis: embeddings → episodios → temas → tono → sesgo
+  3. Análisis: embeddings → eventos → tono → sesgo
 
 Uso:
   python run_pipeline.py           # scraping + análisis
@@ -16,17 +16,16 @@ from datetime import datetime
 
 from loguru import logger
 from app.database import SessionLocal
-from app.models import Articulo, Episodio, Tema
+from app.models import Articulo, Evento
 
 
 def reset_bd():
     print("\n[1/3] Reset de la base de datos...")
     with SessionLocal() as db:
         n_arts = db.query(Articulo).delete()
-        n_eps = db.query(Episodio).delete()
-        n_temas = db.query(Tema).delete()
+        n_evs = db.query(Evento).delete()
         db.commit()
-    print(f"      Eliminados {n_arts} artículos, {n_eps} episodios y {n_temas} temas.")
+    print(f"      Eliminados {n_arts} artículos y {n_evs} eventos.")
 
 
 def correr_scraping():
@@ -53,15 +52,13 @@ def mostrar_resumen():
     print("\n─── Resumen final ───")
     with SessionLocal() as db:
         arts = db.query(Articulo).count()
-        eps = db.query(Episodio).count()
-        temas = db.query(Tema).count()
+        evs = db.query(Evento).count()
         analizados = db.query(Articulo).filter(Articulo.analisis.isnot(None)).count()
-        en_episodios = db.query(Articulo).filter(Articulo.episodio_id.isnot(None)).count()
+        en_eventos = db.query(Articulo).filter(Articulo.evento_id.isnot(None)).count()
     print(f"  Artículos totales : {arts}")
-    print(f"  En episodios      : {en_episodios}")
+    print(f"  En eventos        : {en_eventos}")
     print(f"  Analizados        : {analizados}")
-    print(f"  Episodios creados : {eps}")
-    print(f"  Temas creados     : {temas}")
+    print(f"  Eventos creados   : {evs}")
     print(f"\nFinalizado: {datetime.now().strftime('%H:%M:%S')}")
 
 

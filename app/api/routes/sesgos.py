@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import SessionLocal
-from app.models import Articulo, Episodio, Medio
+from app.models import Articulo, Evento, Medio
 
 router = APIRouter()
 
@@ -17,8 +17,8 @@ def listar_sesgos(limit: int = 30, db: Session = Depends(get_db)):
     medios_map = {m.id: m.nombre for m in db.query(Medio).all()}
 
     episodios = (
-        db.query(Episodio)
-        .options(joinedload(Episodio.articulos))
+        db.query(Evento)
+        .options(joinedload(Evento.articulos))
         .all()
     )
 

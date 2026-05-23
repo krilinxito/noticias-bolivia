@@ -18,23 +18,20 @@ def job_scraping():
 def job_analisis():
     logger.info("Scheduler: iniciando análisis...")
     from sqlalchemy import func, distinct as sql_distinct
-    from app.analysis.embeddings import agrupar_en_episodios, agrupar_en_temas
-    from app.analysis.gemini import analizar_articulo, analizar_sesgo_episodio
+    from app.analysis.embeddings import agrupar_en_eventos
+    from app.analysis.gemini import analizar_articulo, analizar_sesgo_evento
     from app.models import Articulo
 
     with SessionLocal() as db:
-        # Nivel 1: agrupar artículos en episodios (sucesos puntuales, estricto)
-        agrupar_en_episodios(db)
+        # Agrupar artículos en eventos (clustering estricto: sim > 0.75, medios distintos, ≥2 keywords, 48h)
+        agrupar_en_eventos(db)
 
-        # Nivel 2: agrupar episodios en temas (historia en curso, laxo)
-        agrupar_en_temas(db)
-
-        # Tono: artículos en episodios sin analizar, máx 50 por ciclo
+        # Tono: artículos en eventos sin analizar, máx 50 por ciclo
         arts = (
             db.query(Articulo)
             .filter(
                 Articulo.analisis == None,
-                Articulo.episodio_id.isnot(None),
+                Articulo.evento_id.isnot(None),
             )
             .limit(50)
             .all()
@@ -55,23 +52,23 @@ def job_analisis():
             logger.info("Esperando 65s antes del análisis de sesgo (rate limit)...")
             _time.sleep(65)
 
-        # Sesgo: episodios con 2+ medios que ya tienen tono analizado
+        # Sesgo: eventos con 2+ medios que ya tienen tono analizado
         candidatos = (
-            db.query(Articulo.episodio_id)
+            db.query(Articulo.evento_id)
             .filter(
-                Articulo.episodio_id.isnot(None),
+                Articulo.evento_id.isnot(None),
                 Articulo.analisis.isnot(None),
             )
-            .group_by(Articulo.episodio_id)
+            .group_by(Articulo.evento_id)
             .having(func.count(sql_distinct(Articulo.medio_id)) >= 2)
             .all()
         )
         sin_sesgo = []
         for (eid,) in candidatos:
-            arts_ep = db.query(Articulo).filter(Articulo.episodio_id == eid).all()
+            arts_ev = db.query(Articulo).filter(Articulo.evento_id == eid).all()
             tiene_sesgo = any(
                 a.analisis and a.analisis.get('sesgo') is not None
-                for a in arts_ep
+                for a in arts_ev
             )
             if not tiene_sesgo:
                 sin_sesgo.append(eid)
@@ -79,12 +76,12 @@ def job_analisis():
         sesgo_ok = 0
         for eid in sin_sesgo:
             try:
-                analizar_sesgo_episodio(eid, db)
+                analizar_sesgo_evento(eid, db)
                 sesgo_ok += 1
             except Exception:
                 logger.warning("Cuota de sesgo agotada, deteniendo")
                 break
-        logger.info(f"Sesgo: {sesgo_ok}/{len(sin_sesgo)} episodios analizados")
+        logger.info(f"Sesgo: {sesgo_ok}/{len(sin_sesgo)} eventos analizados")
 
     logger.info("Scheduler: análisis completo")
 

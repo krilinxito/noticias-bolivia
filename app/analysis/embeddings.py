@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from loguru import logger
 
-from app.models import Articulo, Episodio, Tema
+from app.models import Articulo, Evento
 
 _model = None
 _kw_model = None
@@ -87,18 +87,13 @@ def _misma_ventana(a, b, horas=48):
     return diff <= horas * 3600
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Nivel 1: agrupar artículos en episodios (sucesos puntuales)
-# Clustering estricto: sim > 0.75, medios distintos, ≥2 keywords comunes, 48h
-# ─────────────────────────────────────────────────────────────────────────────
-
-def agrupar_en_episodios(db):
+def agrupar_en_eventos(db):
     desde_scraping = datetime.utcnow() - timedelta(hours=25)
     desde_publicacion = datetime.utcnow() - timedelta(days=7)
     nuevos = (
         db.query(Articulo)
         .filter(
-            Articulo.episodio_id == None,
+            Articulo.evento_id == None,
             Articulo.fecha_scraping >= desde_scraping,
             or_(
                 Articulo.fecha_publicacion == None,
@@ -109,47 +104,47 @@ def agrupar_en_episodios(db):
     )
 
     if not nuevos:
-        logger.info("No hay artículos nuevos para agrupar en episodios")
+        logger.info("No hay artículos nuevos para agrupar en eventos")
         return 0
 
-    logger.info(f"Agrupando {len(nuevos)} artículos nuevos en episodios...")
+    logger.info(f"Agrupando {len(nuevos)} artículos nuevos en eventos...")
 
-    # Centroide promedio de cada episodio reciente (últimos 3 días)
-    desde_episodio = datetime.utcnow() - timedelta(days=3)
-    episodios_recientes = (
-        db.query(Episodio)
-        .filter(Episodio.fecha_deteccion >= desde_episodio)
+    # Centroide promedio de cada evento reciente (últimos 3 días)
+    desde_evento = datetime.utcnow() - timedelta(days=3)
+    eventos_recientes = (
+        db.query(Evento)
+        .filter(Evento.fecha_deteccion >= desde_evento)
         .all()
     )
-    arts_por_episodio = {}
-    for ep in episodios_recientes:
-        arts_ep = db.query(Articulo).filter(Articulo.episodio_id == ep.id).all()
-        if arts_ep:
-            arts_por_episodio[ep.id] = arts_ep
+    arts_por_evento = {}
+    for ev in eventos_recientes:
+        arts_ev = db.query(Articulo).filter(Articulo.evento_id == ev.id).all()
+        if arts_ev:
+            arts_por_evento[ev.id] = arts_ev
 
-    existing_ids = list(arts_por_episodio.keys())
+    existing_ids = list(arts_por_evento.keys())
 
     model = _get_model()
     nuevos_textos = [a.titulo + " " + (get_texto_analizable(a) or "") for a in nuevos]
 
-    ep_textos_planos = []
-    ep_slice = []
+    ev_textos_planos = []
+    ev_slice = []
     for eid in existing_ids:
-        arts = arts_por_episodio[eid]
+        arts = arts_por_evento[eid]
         textos = [a.titulo + " " + (get_texto_analizable(a) or "") for a in arts]
-        ep_slice.append((len(ep_textos_planos), len(ep_textos_planos) + len(textos)))
-        ep_textos_planos.extend(textos)
+        ev_slice.append((len(ev_textos_planos), len(ev_textos_planos) + len(textos)))
+        ev_textos_planos.extend(textos)
 
-    all_textos = nuevos_textos + ep_textos_planos
+    all_textos = nuevos_textos + ev_textos_planos
     all_embeddings = model.encode(all_textos, show_progress_bar=False)
 
     nuevos_emb = all_embeddings[:len(nuevos)]
-    ep_all_emb = all_embeddings[len(nuevos):]
+    ev_all_emb = all_embeddings[len(nuevos):]
 
     if existing_ids:
         existing_emb = np.array([
-            np.mean(ep_all_emb[s:e], axis=0)
-            for s, e in ep_slice
+            np.mean(ev_all_emb[s:e], axis=0)
+            for s, e in ev_slice
         ])
     else:
         existing_emb = np.array([])
@@ -183,32 +178,32 @@ def agrupar_en_episodios(db):
         raiz = find(i)
         grupos.setdefault(raiz, []).append(i)
 
-    episodios_creados = 0
+    eventos_creados = 0
     arts_agregados = 0
 
     for indices in grupos.values():
         grupo_arts = [nuevos[i] for i in indices]
         cluster_emb = np.mean([nuevos_emb[i] for i in indices], axis=0).reshape(1, -1)
 
-        # Intentar asignar a un episodio existente
+        # Intentar asignar a un evento existente
         if len(existing_emb) > 0:
             sims = cosine_similarity(cluster_emb, existing_emb)[0]
             best_idx = int(np.argmax(sims))
             if sims[best_idx] > 0.75:
                 cluster_palabras = set().union(*[_palabras_titulo(a.titulo) for a in grupo_arts])
-                ep_palabras = set().union(*[
+                ev_palabras = set().union(*[
                     _palabras_titulo(a.titulo)
-                    for a in arts_por_episodio[existing_ids[best_idx]]
+                    for a in arts_por_evento[existing_ids[best_idx]]
                 ])
-                if len(cluster_palabras & ep_palabras) >= 2:
+                if len(cluster_palabras & ev_palabras) >= 2:
                     eid = existing_ids[best_idx]
                     for art in grupo_arts:
-                        art.episodio_id = eid
+                        art.evento_id = eid
                         db.add(art)
                     arts_agregados += len(grupo_arts)
                     continue
 
-        # Crear episodio nuevo solo si 2+ medios distintos
+        # Crear evento nuevo solo si 2+ medios distintos
         medios_distintos = len({a.medio_id for a in grupo_arts})
         if medios_distintos < 2:
             continue
@@ -223,161 +218,21 @@ def agrupar_en_episodios(db):
         score = medios_distintos / 6.0
         keywords = _extraer_keywords([get_texto_analizable(a) for a in grupo_arts if get_texto_analizable(a)])
 
-        episodio = Episodio(
+        evento = Evento(
             titulo=art_principal.titulo,
             imagen_url=imagen,
             score_importancia=score,
             keywords=keywords,
         )
-        db.add(episodio)
+        db.add(evento)
         db.flush()
 
         for art in grupo_arts:
-            art.episodio_id = episodio.id
+            art.evento_id = evento.id
             db.add(art)
 
-        episodios_creados += 1
+        eventos_creados += 1
 
     db.commit()
-    logger.info(f"Episodios creados: {episodios_creados}, artículos agregados a episodios existentes: {arts_agregados}")
-    return episodios_creados
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Nivel 2: agrupar episodios en temas (historias en curso)
-# Clustering laxo: sim > 0.65, ≥1 keyword común
-# ─────────────────────────────────────────────────────────────────────────────
-
-def agrupar_en_temas(db):
-    desde = datetime.utcnow() - timedelta(hours=48)
-    sin_tema = (
-        db.query(Episodio)
-        .filter(
-            Episodio.tema_id == None,
-            Episodio.fecha_deteccion >= desde,
-        )
-        .all()
-    )
-
-    if not sin_tema:
-        logger.info("No hay episodios nuevos para agrupar en temas")
-        return 0
-
-    logger.info(f"Agrupando {len(sin_tema)} episodios en temas...")
-
-    # Centroides de temas existentes (últimos 14 días)
-    desde_tema = datetime.utcnow() - timedelta(days=14)
-    temas_recientes = (
-        db.query(Tema)
-        .filter(Tema.fecha_deteccion >= desde_tema)
-        .all()
-    )
-    eps_por_tema = {}
-    for t in temas_recientes:
-        eps = db.query(Episodio).filter(Episodio.tema_id == t.id).all()
-        if eps:
-            eps_por_tema[t.id] = eps
-
-    model = _get_model()
-
-    # Embeddings de episodios sin tema
-    nuevos_textos = [
-        ep.titulo + " " + " ".join(ep.keywords or [])
-        for ep in sin_tema
-    ]
-
-    # Embeddings de todos los episodios de temas existentes (para centroides)
-    tema_ids = list(eps_por_tema.keys())
-    tema_textos_planos = []
-    tema_slice = []
-    for tid in tema_ids:
-        eps = eps_por_tema[tid]
-        textos = [e.titulo + " " + " ".join(e.keywords or []) for e in eps]
-        tema_slice.append((len(tema_textos_planos), len(tema_textos_planos) + len(textos)))
-        tema_textos_planos.extend(textos)
-
-    all_textos = nuevos_textos + tema_textos_planos
-    all_emb = model.encode(all_textos, show_progress_bar=False)
-
-    nuevos_emb = all_emb[:len(sin_tema)]
-    tema_all_emb = all_emb[len(sin_tema):]
-
-    if tema_ids:
-        tema_centroids = np.array([
-            np.mean(tema_all_emb[s:e], axis=0)
-            for s, e in tema_slice
-        ])
-    else:
-        tema_centroids = np.array([])
-
-    palabras_nuevos = [_palabras_titulo(ep.titulo) for ep in sin_tema]
-
-    temas_creados = 0
-
-    for i, ep in enumerate(sin_tema):
-        asignado = False
-
-        if len(tema_centroids) > 0:
-            sims = cosine_similarity(nuevos_emb[i].reshape(1, -1), tema_centroids)[0]
-            best_idx = int(np.argmax(sims))
-            if sims[best_idx] > 0.65:
-                # Verificar solapamiento de keywords
-                tid = tema_ids[best_idx]
-                tema_palabras = set().union(*[
-                    _palabras_titulo(e.titulo)
-                    for e in eps_por_tema[tid]
-                ])
-                if palabras_nuevos[i] & tema_palabras:
-                    tema = db.query(Tema).filter(Tema.id == tid).first()
-                    ep.tema_id = tid
-                    db.add(ep)
-                    # Actualizar score e imagen del tema si este episodio es más relevante
-                    if ep.score_importancia >= tema.score_importancia:
-                        tema.score_importancia = ep.score_importancia
-                        if ep.imagen_url:
-                            tema.imagen_url = ep.imagen_url
-                        db.add(tema)
-                    # Actualizar centroides locales
-                    eps_por_tema[tid].append(ep)
-                    old_s, old_e = tema_slice[best_idx]
-                    nuevo_texto = ep.titulo + " " + " ".join(ep.keywords or [])
-                    nuevo_emb = model.encode([nuevo_texto], show_progress_bar=False)[0]
-                    tema_all_emb_list = list(tema_all_emb)
-                    tema_all_emb_list.insert(old_e, nuevo_emb)
-                    tema_all_emb = np.array(tema_all_emb_list)
-                    new_end = old_e + 1
-                    tema_slice[best_idx] = (old_s, new_end)
-                    for k in range(best_idx + 1, len(tema_slice)):
-                        s, e = tema_slice[k]
-                        tema_slice[k] = (s + 1, e + 1)
-                    tema_centroids[best_idx] = np.mean(tema_all_emb[old_s:new_end], axis=0)
-                    asignado = True
-
-        if not asignado and ep.score_importancia >= 0.33:
-            # Crear nuevo tema
-            nuevo_tema = Tema(
-                titulo=ep.titulo,
-                imagen_url=ep.imagen_url,
-                score_importancia=ep.score_importancia,
-                keywords=ep.keywords,
-            )
-            db.add(nuevo_tema)
-            db.flush()
-            ep.tema_id = nuevo_tema.id
-            db.add(ep)
-            eps_por_tema[nuevo_tema.id] = [ep]
-            nuevo_texto = ep.titulo + " " + " ".join(ep.keywords or [])
-            nuevo_emb = model.encode([nuevo_texto], show_progress_bar=False)
-            tema_ids.append(nuevo_tema.id)
-            tema_slice.append((len(tema_all_emb), len(tema_all_emb) + 1))
-            if len(tema_all_emb) > 0:
-                tema_all_emb = np.vstack([tema_all_emb, nuevo_emb])
-                tema_centroids = np.vstack([tema_centroids, nuevo_emb])
-            else:
-                tema_all_emb = nuevo_emb
-                tema_centroids = nuevo_emb
-            temas_creados += 1
-
-    db.commit()
-    logger.info(f"Temas creados: {temas_creados}, episodios asignados a temas existentes: {len(sin_tema) - temas_creados}")
-    return temas_creados
+    logger.info(f"Eventos creados: {eventos_creados}, artículos agregados a eventos existentes: {arts_agregados}")
+    return eventos_creados

@@ -55,10 +55,10 @@ def get_eventos(min_importancia: float = 0.0, limit: int = 10) -> str:
                 m = db.query(Medio).filter(Medio.id == mid).first()
                 if m:
                     medios_nombres.append(m.nombre)
-            temas = ", ".join(ev.temas or []) or "—"
+            keywords = ", ".join(ev.keywords or []) or "—"
             lineas.append(
                 f"ID {ev.id} | importancia {ev.score_importancia:.2f} | {ev.titulo[:70]}\n"
-                f"  Medios: {', '.join(medios_nombres)} | Temas: {temas}"
+                f"  Medios: {', '.join(medios_nombres)} | Keywords: {keywords}"
             )
         return "\n\n".join(lineas)
 

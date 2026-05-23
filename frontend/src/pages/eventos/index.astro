@@ -1,3 +1,94 @@
 ---
-return Astro.redirect('/temas', 301)
+import Layout from '../../layouts/Layout.astro'
+import { getEventos } from '../../lib/api'
+import { detectarCategoria, CAT_COLOR } from '../../lib/categorias'
+
+const catParam = Astro.url.searchParams.get('categoria') || ''
+
+let eventos: any[] = []
+try { eventos = await getEventos(200) } catch {}
+
+const eventosConCat = eventos
+  .map(e => ({
+    ...e,
+    categoria: detectarCategoria(e.keywords ?? []),
+  }))
+  .sort((a, b) => new Date(b.fecha_deteccion).getTime() - new Date(a.fecha_deteccion).getTime())
+
+const eventosFiltrados = catParam
+  ? eventosConCat.filter(e => e.categoria === catParam)
+  : eventosConCat
+
+const cats = [...new Set(eventosConCat.map(e => e.categoria))]
+
+function tiempoRelativo(fecha: string) {
+  const diff = Date.now() - new Date(fecha).getTime()
+  const h = Math.floor(diff / 3_600_000)
+  if (h < 1) return 'hace menos de 1h'
+  if (h < 24) return `hace ${h}h`
+  return `hace ${Math.floor(h / 24)}d`
+}
 ---
+<Layout title="Eventos">
+  <div style="max-width:56rem; margin:0 auto; padding:2rem;">
+
+    <div style="border-bottom:3px double var(--border-dark); margin-bottom:1.25rem; padding-bottom:0.75rem;">
+      <h2 style="font-family:'Playfair Display',Georgia,serif; font-size:1.6rem; font-weight:700;">Eventos</h2>
+      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; font-size:0.85rem; color:var(--ink-light); margin-top:0.2rem;">
+        {eventosFiltrados.length} eventos · ordenados por fecha de detección
+      </p>
+    </div>
+
+    <!-- Filtros por categoría -->
+    <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:1.25rem;">
+      <a href="/eventos"
+        style={`font-family:'IM Fell English',Georgia,serif; font-size:0.72rem; padding:0.2rem 0.6rem; border:1px solid var(--border-dark); text-decoration:none; background:${!catParam ? 'var(--ink)' : 'transparent'}; color:${!catParam ? 'var(--paper)' : 'var(--ink)'};`}>
+        Todos
+      </a>
+      {cats.map(cat => (
+        <a href={`/eventos?categoria=${encodeURIComponent(cat)}`}
+          style={`font-family:'IM Fell English',Georgia,serif; font-size:0.72rem; padding:0.2rem 0.6rem; border:1px solid ${CAT_COLOR[cat] ?? 'var(--border-dark)'}; text-decoration:none; background:${catParam === cat ? CAT_COLOR[cat] : 'transparent'}; color:${catParam === cat ? 'var(--paper)' : CAT_COLOR[cat] ?? 'var(--ink)'};`}>
+          {cat}
+        </a>
+      ))}
+    </div>
+
+    <!-- Lista de eventos -->
+    {eventosFiltrados.length === 0 ? (
+      <p style="font-family:'IM Fell English',Georgia,serif; font-style:italic; color:var(--ink-light);">Sin eventos.</p>
+    ) : (
+      <div>
+        {eventosFiltrados.map((e, i) => {
+          const color = CAT_COLOR[e.categoria] ?? 'var(--ink-light)'
+          const pct = Math.round(e.score_importancia * 100)
+          return (
+            <div style={`border-bottom:1px solid var(--border); padding:0.75rem 0 0.75rem 0.875rem; border-left:3px solid ${color}; margin-bottom:0.1rem; ${i === 0 ? 'border-top:1px solid var(--border);' : ''}`}>
+              <div style="display:flex; justify-content:space-between; align-items:baseline; gap:1rem;">
+                <div style="flex:1; min-width:0;">
+                  <span style={`font-family:'IM Fell English',Georgia,serif; font-size:0.6rem; text-transform:uppercase; letter-spacing:0.1em; color:${color}; display:block; margin-bottom:0.15rem;`}>
+                    {e.categoria}
+                  </span>
+                  <a href={`/eventos/${e.id}`} style="font-family:'Playfair Display',Georgia,serif; font-weight:600; font-size:0.95rem; line-height:1.3; color:var(--ink); text-decoration:none; display:block;">
+                    {e.titulo}
+                  </a>
+                  <p style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light); margin-top:0.2rem;">
+                    {(e.medios ?? []).join(' · ')}
+                  </p>
+                </div>
+                <div style="text-align:right; flex-shrink:0;">
+                  <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.7rem; color:var(--ink-light); display:block;">
+                    {tiempoRelativo(e.fecha_deteccion)}
+                  </span>
+                  <span style="font-family:'IM Fell English',Georgia,serif; font-size:0.68rem; color:var(--ink-light);">
+                    {e.medios_count ?? e.medios?.length ?? 0} medios · {pct}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )}
+
+  </div>
+</Layout>
