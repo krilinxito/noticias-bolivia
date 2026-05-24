@@ -40,7 +40,7 @@ def _serializar_articulo(a):
 def _serializar_evento(ev, medios, incluir_articulos=True):
     imagen = ev.imagen_url or next(
         (a.imagen_url for a in ev.articulos if a.imagen_url), None
-    ) if incluir_articulos else ev.imagen_url
+    )
 
     base = {
         "id": ev.id,
