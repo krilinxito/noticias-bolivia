@@ -200,6 +200,16 @@ def agrupar_en_eventos(db):
                     for art in grupo_arts:
                         art.evento_id = eid
                         db.add(art)
+
+                    medios_existentes = {a.medio_id for a in arts_por_evento[eid]}
+                    medios_nuevos = {a.medio_id for a in grupo_arts}
+                    todos_medios = medios_existentes | medios_nuevos
+                    if len(todos_medios) > len(medios_existentes):
+                        ev_obj = db.query(Evento).filter(Evento.id == eid).first()
+                        if ev_obj:
+                            ev_obj.score_importancia = len(todos_medios) / 6.0
+                            db.add(ev_obj)
+
                     arts_agregados += len(grupo_arts)
                     continue
 

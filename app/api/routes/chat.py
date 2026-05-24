@@ -274,28 +274,28 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
 
             contents.append(candidate)
 
-        function_parts = []
-        for p in function_calls:
-            fc = p.function_call
-            nombre = fc.name
-            args = dict(fc.args) if fc.args else {}
-            logger.info(f"Chat tool call: {nombre}({args})")
-            tools_usadas.append(nombre)
+            function_parts = []
+            for p in function_calls:
+                fc = p.function_call
+                nombre = fc.name
+                args = dict(fc.args) if fc.args else {}
+                logger.info(f"Chat tool call: {nombre}({args})")
+                tools_usadas.append(nombre)
 
-            try:
-                texto_resultado, cards = TOOL_HANDLERS[nombre](db, args)
-                todas_cards.extend(cards)
-            except Exception as e:
-                texto_resultado = f"Error ejecutando {nombre}: {e}"
+                try:
+                    texto_resultado, cards = TOOL_HANDLERS[nombre](db, args)
+                    todas_cards.extend(cards)
+                except Exception as e:
+                    texto_resultado = f"Error ejecutando {nombre}: {e}"
 
-            function_parts.append(types.Part(
-                function_response=types.FunctionResponse(
-                    name=nombre,
-                    response={"result": texto_resultado},
-                )
-            ))
+                function_parts.append(types.Part(
+                    function_response=types.FunctionResponse(
+                        name=nombre,
+                        response={"result": texto_resultado},
+                    )
+                ))
 
-        contents.append(types.Content(role="user", parts=function_parts))
+            contents.append(types.Content(role="user", parts=function_parts))
 
     except Exception as e:
         logger.error(f"Chat: error Gemini: {e}")
