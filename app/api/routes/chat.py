@@ -299,15 +299,15 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"Chat: error Gemini: {e}")
-        codigo = getattr(e, "status_code", None)
-        if codigo == 503:
-            msg = "El servicio de IA está saturado en este momento. Intenta de nuevo en unos segundos."
-        elif codigo == 429:
-            msg = "Se alcanzó el límite de la API de Gemini. Intenta de nuevo en unos minutos."
-        elif codigo == 400:
-            msg = "API key de Gemini no válida. Contacta al administrador."
+        msg_str = str(e).lower()
+        if "503" in msg_str or "serviceunavailable" in msg_str or "overloaded" in msg_str:
+            msg = "La API de Gemini está saturada en este momento (503). Espera unos segundos e intenta de nuevo."
+        elif "429" in msg_str or "resource_exhausted" in msg_str or "toomanyrequests" in msg_str:
+            msg = "Se alcanzó el límite diario de la API de Gemini (429). Intenta de nuevo en unos minutos."
+        elif "400" in msg_str or "invalid_argument" in msg_str:
+            msg = "La solicitud a Gemini fue rechazada (400). Revisa la configuración de la API key."
         else:
-            msg = f"Error al procesar tu consulta ({codigo or type(e).__name__}). Intenta de nuevo."
+            msg = f"Error al conectar con Gemini ({type(e).__name__}). Intenta de nuevo en unos segundos."
         return {"respuesta": msg, "tools_usadas": tools_usadas, "cards": []}
 
     respuesta = response.text or "No pude generar una respuesta."

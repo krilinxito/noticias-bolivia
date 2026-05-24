@@ -245,4 +245,28 @@ def agrupar_en_eventos(db):
 
     db.commit()
     logger.info(f"Eventos creados: {eventos_creados}, artículos agregados a eventos existentes: {arts_agregados}")
+    recalcular_scores_eventos(db)
     return eventos_creados
+
+
+def recalcular_scores_eventos(db):
+    from sqlalchemy import func
+    counts = (
+        db.query(Articulo.evento_id, func.count(func.distinct(Articulo.medio_id)).label("cnt"))
+        .filter(Articulo.evento_id.isnot(None))
+        .group_by(Articulo.evento_id)
+        .all()
+    )
+    score_map = {eid: cnt / 6.0 for eid, cnt in counts}
+    if not score_map:
+        return
+    eventos = db.query(Evento).filter(Evento.id.in_(list(score_map.keys()))).all()
+    updated = 0
+    for ev in eventos:
+        nuevo = score_map.get(ev.id, ev.score_importancia)
+        if abs(ev.score_importancia - nuevo) > 0.001:
+            ev.score_importancia = nuevo
+            db.add(ev)
+            updated += 1
+    db.commit()
+    logger.info(f"Scores recalculados: {updated} eventos actualizados")
