@@ -149,9 +149,9 @@
 
 \textbf{El Observador Digital} es una plataforma automática de monitoreo y análisis comparativo de medios de comunicación bolivianos. El sistema vigila seis portales de noticias --- Red Uno, El Deber, Brújula Digital, Los Tiempos, Erbol y La Razón --- recolectando artículos nuevos \textbf{una vez al día} y procesándolos con técnicas de inteligencia artificial local y en la nube.
 
-El flujo de trabajo central es el siguiente: los artículos recién descargados se convierten en vectores numéricos mediante un modelo de lenguaje local (\textit{MiniLM-L12-v2}) y se agrupan en dos niveles jerárquicos. Primero se forman \textbf{episodios}: clusters estrictos (similitud $> 0{,}75$, sin repetir medio, ventana de 48 horas) que representan un hecho noticioso concreto --- un partido, una declaración, un decreto. Después, los episodios relacionados a lo largo del tiempo se agrupan en \textbf{temas} (similitud $> 0{,}65$, ventana de 14 días), que representan una historia en desarrollo. En ambos niveles, el artículo más cercano al centroide del cluster se selecciona como representante, garantizando que el título y la imagen del episodio o tema sean los más representativos semánticamente. Solo se crea un episodio si al menos \textbf{dos medios distintos} lo cubren --- esto garantiza que el sistema detecta únicamente noticias con cobertura cruzada real. Posteriormente, la API de Gemini analiza el tono editorial de cada artículo y detecta diferencias de encuadre entre los distintos medios que cubren el mismo episodio.
+El flujo de trabajo central es el siguiente: los artículos recién descargados se convierten en vectores numéricos mediante un modelo de lenguaje local (\textit{MiniLM-L12-v2}) y se agrupan en \textbf{eventos}: clusters estrictos (similitud $> 0{,}75$, sin repetir medio, $\geq$2 palabras clave comunes, ventana de 48 horas) que representan un hecho noticioso concreto con cobertura cruzada real. El artículo más cercano al centroide del cluster se selecciona como representante, garantizando que el título y la imagen del evento sean los más representativos semánticamente. Solo se crea un evento si al menos \textbf{dos medios distintos} lo cubren; el \texttt{score\_importancia} (medios que cubren el evento entre 6) se recalcula automáticamente al final de cada ciclo. Posteriormente, la API de Gemini analiza el tono editorial de cada artículo y detecta diferencias de encuadre entre los distintos medios que cubren el mismo evento.
 
-Los resultados son accesibles a través de una interfaz web con estética de periódico clásico: portada con tarjetas visuales (incluida la imagen de portada de cada evento), cronología de eventos con gráfico de dispersión por sesgo e importancia, y visualización detallada de sesgos editoriales. Adicionalmente, el sistema ofrece un asistente de inteligencia artificial conversacional flotante que responde preguntas sobre los datos monitoreados en lenguaje natural y devuelve tarjetas con los eventos o artículos más relevantes para cada consulta.
+Los resultados son accesibles a través de una interfaz web con estética de periódico clásico: portada con tarjetas visuales (incluida la imagen de portada de cada evento, con fallback de franja de color cuando no hay imagen disponible), cronología de eventos con gráfico de dispersión por sesgo e importancia, y visualización detallada de sesgos editoriales. Adicionalmente, el sistema ofrece un asistente de inteligencia artificial conversacional flotante que responde preguntas sobre los datos monitoreados en lenguaje natural y devuelve tarjetas con los eventos o artículos más relevantes para cada consulta.
 
 La plataforma corre en un servidor VPS con costes de infraestructura mínimos: el modelo de \textit{embeddings} funciona en CPU sin costo alguno, y la API de Gemini se usa en el nivel gratuito.
 
@@ -215,7 +215,7 @@ El sistema está organizado en cuatro capas funcionales que operan como un \text
 
 % Capa 3
 \node[box, fill=purple!20, below=0.5cm of L2c] (L3) {CAPA 3: ANÁLISIS IA (Gemini API)};
-\node[subbox, below=0.15cm of L3] (L3a) {Tono por artículo --- gemini-2.0-flash-lite};
+\node[subbox, below=0.15cm of L3] (L3a) {Tono por artículo --- gemini-2.5-flash-lite};
 \node[subbox, below=0.1cm of L3a] (L3b) {Sesgo comparativo entre medios --- gemini-2.5-flash};
 
 % Capa 4
@@ -247,7 +247,7 @@ El sistema está organizado en cuatro capas funcionales que operan como un \text
 \label{fig:arquitectura}
 \end{figure}
 
-El \textbf{programador de tareas} (\textit{APScheduler}) coordina dos ciclos diarios: recolección a las 10:00 UTC y análisis a las 11:00 UTC. El ciclo de recolección descarga artículos nuevos y sus imágenes de portada; el ciclo de análisis agrupa los artículos en episodios y temas, y ejecuta el análisis editorial con Gemini. Ambos ciclos son independientes: el análisis siempre trabaja sobre los artículos ya almacenados en la base de datos.
+El \textbf{programador de tareas} (\textit{APScheduler}) coordina dos ciclos diarios: recolección a las 10:00 UTC y análisis a las 11:00 UTC. El ciclo de recolección descarga artículos nuevos y sus imágenes de portada; el ciclo de análisis agrupa los artículos en eventos y ejecuta el análisis editorial con Gemini. Ambos ciclos son independientes: el análisis siempre trabaja sobre los artículos ya almacenados en la base de datos.
 
 % ============================================================
 \section{Recolección de Datos mediante Web Scraping}
@@ -515,7 +515,7 @@ def _extraer_imagen(soup, base_url):
     return url
 \end{lstlisting}
 
-La URL obtenida se almacena en la columna \texttt{imagen\_url} de la tabla \texttt{articulos}. El artículo representativo de cada episodio (seleccionado por centroide) provee su \texttt{imagen\_url} directamente al episodio y al tema. En el frontend, si la imagen no carga (error HTTP, URL expirada), el componente muestra una franja de color de la categoría del episodio como alternativa visual.
+La URL obtenida se almacena en la columna \texttt{imagen\_url} de la tabla \texttt{articulos}. El artículo representativo de cada evento (seleccionado por centroide) provee su \texttt{imagen\_url} directamente al evento. En el frontend, si la imagen no carga (error HTTP, URL expirada), \texttt{EventoCard} muestra una franja de color de la categoría del evento como alternativa visual.
 
 \subsection{Filtros de calidad}
 
@@ -574,7 +574,7 @@ Los portales bolivianos publican las fechas en hora local (UTC-4, sin horario de
 \end{itemize}
 
 % ============================================================
-\section{Agrupación en Episodios y Temas con IA Local}
+\section{Agrupación en Eventos con IA Local}
 % ============================================================
 
 \subsection{Representación vectorial de artículos (\textit{embeddings})}
@@ -613,25 +613,25 @@ Esta fórmula calcula el coseno del ángulo entre dos vectores. Su rango es de $
   \item $< 0.4$: artículos sobre temas no relacionados.
 \end{itemize}
 
-El sistema aplica \textbf{dos umbrales distintos} según el nivel de agrupación:
+El sistema aplica un \textbf{umbral único de $0{,}75$} para la formación de eventos:
 
 \begin{itemize}[nosep]
-  \item \textbf{Episodios} (umbral $\mathbf{0.75}$): agrupa artículos publicados en las últimas \textbf{48 horas} que traten exactamente el mismo hecho --- una declaración, un partido, un decreto --- con la condición adicional de que sean de medios distintos y compartan al menos 2 palabras clave. El umbral alto garantiza que el cluster es un evento puntual, no un tema amplio.
-  \item \textbf{Temas} (umbral $\mathbf{0.65}$): agrupa \textit{episodios} ya formados dentro de una ventana de \textbf{14 días}. Este nivel captura la historia en desarrollo: varios hechos puntuales relacionados con el mismo asunto (por ejemplo, distintas sesiones legislativas sobre el mismo proyecto de ley). El umbral más bajo permite capturar estos casos aunque cada episodio use vocabulario parcialmente diferente.
+  \item \textbf{Union-Find} (umbral $\mathbf{0.75}$): agrupa artículos publicados en las últimas \textbf{48 horas} que traten exactamente el mismo hecho --- una declaración, un partido, un decreto --- con la condición adicional de que sean de medios distintos y compartan al menos 2 palabras clave. El umbral alto garantiza que el cluster es un hecho puntual y concreto.
+  \item \textbf{Asignación a eventos existentes} (umbral $\mathbf{0.75}$): si el centroide del cluster nuevo supera ese umbral contra un evento de los últimos 3 días y comparte $\geq$2 palabras clave, los artículos se incorporan al evento existente en lugar de crear uno nuevo.
 \end{itemize}
 
-\subsection{Algoritmo Union-Find para clustering de episodios}
+\subsection{Algoritmo Union-Find para clustering de eventos}
 
-Con las similitudes calculadas, el problema se convierte en: \textit{¿cómo agrupar artículos en episodios?}. El algoritmo \textbf{Union-Find} (también llamado \textit{Disjoint Set Union}) resuelve esto eficientemente.
+Con las similitudes calculadas, el problema se convierte en: \textit{¿cómo agrupar artículos en eventos?}. El algoritmo \textbf{Union-Find} (también llamado \textit{Disjoint Set Union}) resuelve esto eficientemente.
 
 La idea es sencilla:
 \begin{enumerate}[nosep]
   \item Al inicio, cada artículo está en su propio grupo individual.
   \item Por cada par de artículos $(i, j)$ que cumplan todas las condiciones: fusionar sus grupos.
-  \item Al finalizar, todos los artículos en el mismo grupo conforman un episodio.
+  \item Al finalizar, todos los artículos en el mismo grupo conforman un evento.
 \end{enumerate}
 
-Para la formación de episodios, la fusión de dos artículos solo ocurre si se cumplen \textit{todas} las condiciones siguientes:
+Para la formación de eventos, la fusión de dos artículos en el mismo cluster solo ocurre si se cumplen \textit{todas} las condiciones siguientes:
 
 \begin{itemize}[nosep]
   \item Similitud coseno $> 0{,}75$.
@@ -640,7 +640,7 @@ Para la formación de episodios, la fusión de dos artículos solo ocurre si se 
   \item Fueron publicados dentro de una ventana de \textbf{48 horas}.
 \end{itemize}
 
-\begin{lstlisting}[language=Python, caption=Pseudocódigo simplificado de Union-Find para episodios]
+\begin{lstlisting}[language=Python, caption=Pseudocódigo simplificado de Union-Find para eventos]
 parent = {i: i for i in articulos}
 
 def find(x):
@@ -663,49 +663,46 @@ for i in articulos:
 # Resultado: grupos de articulos por find(id)
 \end{lstlisting}
 
-El resultado es un conjunto de \textit{clusters}: cada cluster contiene los artículos que el algoritmo considera que tratan el mismo hecho noticioso concreto. Las condiciones estrictas evitan los \textit{mega-clusters} en los que artículos de distintas semanas o distintos asuntos se agrupan por transitividad.
+El resultado es un conjunto de \textit{clusters}: cada cluster contiene los artículos que el algoritmo considera que tratan el mismo hecho noticioso concreto. Las condiciones estrictas evitan los \textit{mega-clusters} en los que artículos de distintos asuntos se agrupan por transitividad.
 
-\subsection{Criterio de creación de episodio y tema}
+\subsection{Criterio de creación de evento}
 
-\subsubsection*{Episodio}
-
-No todo cluster se convierte en un episodio. Las condiciones de Union-Find ya exigen medios distintos por pares, pero el filtro final refuerza esto: \textbf{un cluster solo genera un episodio si contiene artículos de dos o más medios distintos}. Este requisito garantiza que el sistema solo almacena hechos con cobertura cruzada real, descartando artículos aislados.
+No todo cluster se convierte en un evento. Las condiciones de Union-Find ya exigen medios distintos por pares, pero el filtro final refuerza esto: \textbf{un cluster solo genera un evento si contiene artículos de dos o más medios distintos}. Este requisito garantiza que el sistema solo almacena hechos con cobertura cruzada real, descartando artículos aislados.
 
 \begin{lstlisting}[language=Python, caption=Filtro de cobertura cruzada en embeddings.py]
 medios_en_cluster = {art.medio_id for art in cluster}
 if len(medios_en_cluster) < 2:
     continue  # cluster de un solo medio -> descartar
-nuevo_episodio = Episodio(
+nuevo_evento = Evento(
     titulo=articulo_centroide.titulo,
     imagen_url=articulo_centroide.imagen_url,
     score_importancia=len(medios_en_cluster) / 6
 )
 \end{lstlisting}
 
-\subsubsection*{Tema}
+\subsection{Incorporación de artículos nuevos a eventos existentes}
 
-Una vez formados los episodios del día, el sistema los agrupa en \textbf{temas} usando un segundo paso de Union-Find con el umbral laxo ($> 0{,}65$) sobre los embeddings centroides de cada episodio, dentro de una ventana de 14 días. El tema hereda el título e imagen del episodio más reciente y sirve como contenedor para rastrear una historia a lo largo del tiempo. Si un episodio no se agrupa con ningún otro, se le crea un tema propio (relación 1:1 inicial que puede crecer con el tiempo).
-
-\subsection{Incorporación de artículos nuevos a episodios existentes}
-
-Los hechos noticiosos no siempre terminan en un día. Una huelga puede generar nuevos artículos en días sucesivos. El sistema maneja este escenario comparando los clusters de artículos nuevos con los episodios ya existentes en la base de datos.
+Los hechos noticiosos no siempre terminan en un día. Una huelga puede generar nuevos artículos en días sucesivos. El sistema maneja este escenario comparando los clusters de artículos nuevos con los eventos ya existentes en la base de datos.
 
 El proceso funciona así:
 
 \begin{enumerate}[nosep]
-  \item Se recuperan los episodios de los últimos \textbf{2 días} y se calcula el embedding centroide de cada uno.
+  \item Se recuperan los eventos de los últimos \textbf{3 días} y se calcula el embedding centroide de cada uno.
   \item Para cada cluster de artículos nuevos, se calcula su \textbf{centroide} (promedio de embeddings).
-  \item Se compara el centroide del cluster con el centroide de cada episodio existente.
-  \item Si la similitud supera $0{,}75$ (umbral estricto): los artículos nuevos se incorporan al episodio existente en lugar de crear uno nuevo. Si no supera el umbral pero supera $0{,}65$, se crea un episodio nuevo que será agrupado en el mismo tema en el paso de temas.
+  \item Se compara el centroide del cluster con el centroide de cada evento existente.
+  \item Si la similitud supera $0{,}75$ \textbf{y} se comparten $\geq$2 palabras clave: los artículos nuevos se incorporan al evento existente y su \texttt{score\_importancia} se actualiza inmediatamente para reflejar los nuevos medios incorporados.
+  \item Si no hay match, se crea un evento nuevo (siempre que el cluster cumpla el requisito de 2+ medios distintos).
 \end{enumerate}
 
-Esto evita que el mismo hecho aparezca como episodios duplicados y permite que el sistema acumule la cobertura de una noticia a lo largo de sus días de seguimiento.
+Al finalizar el ciclo completo, la función \texttt{recalcular\_scores\_eventos()} recorre todos los eventos activos y recalcula el score de importancia contando los medios distintos con artículos asociados, garantizando que los scores sean siempre consistentes con el estado real de la base de datos.
+
+Esto evita que el mismo hecho aparezca como eventos duplicados y permite que el sistema acumule la cobertura de una noticia a lo largo de sus días de seguimiento.
 
 \subsection{Selección del artículo representativo por centroide}
 
-En cualquier cluster, el sistema debe elegir un artículo como \textbf{representante} para obtener su título e imagen. La elección influye directamente en lo que el usuario ve en las tarjetas y en el título del episodio o tema.
+En cualquier cluster, el sistema debe elegir un artículo como \textbf{representante} para obtener su título e imagen. La elección influye directamente en lo que el usuario ve en las tarjetas y en el título del evento.
 
-En lugar de elegir el primer artículo insertado (que puede ser el más periférico del cluster), el sistema calcula el \textbf{centroide} del cluster --- el vector promedio de todos los embeddings del grupo --- y selecciona el artículo cuyo embedding sea más cercano al centroide:
+En lugar de elegir el primer artículo insertado (que puede ser el más periférico del cluster), el sistema calcula el \textbf{centroide} del cluster --- el vector promedio de todos los embeddings del grupo --- y selecciona el artículo cuyo embedding sea más cercano al centroide para representar el evento:
 
 \begin{lstlisting}[language=Python, caption=Selección por centroide en embeddings.py]
 import numpy as np
@@ -723,7 +720,7 @@ titulo   = representante.titulo
 imagen   = representante.imagen_url
 \end{lstlisting}
 
-Este artículo es el más ``típico'' del cluster en el sentido semántico: su embedding está más cerca del significado promedio del conjunto. Esto garantiza que el título y la imagen del episodio sean representativos del evento, no un caso borde o un artículo marginalmente relacionado.
+Este artículo es el más ``típico'' del cluster en el sentido semántico: su embedding está más cerca del significado promedio del conjunto. Esto garantiza que el título y la imagen del evento sean representativos del hecho noticioso, no un caso borde o un artículo marginalmente relacionado.
 
 \subsection{Extracción de palabras clave con KeyBERT}
 
@@ -735,7 +732,7 @@ La entrada es la concatenación de los títulos y cuerpos de todos los artículo
 ["reforma tributaria", "gobierno", "impuesto", "asambleistas", "decreto"]
 \end{lstlisting}
 
-Estas palabras clave se almacenan en el campo \texttt{keywords} del episodio y se usan para filtrado, categorización y presentación en el frontend.
+Estas palabras clave se almacenan en el campo \texttt{keywords} del evento y se usan para filtrado, categorización y presentación en el frontend.
 
 % ============================================================
 \section{Análisis Editorial con Gemini}
@@ -743,7 +740,7 @@ Estas palabras clave se almacenan en el campo \texttt{keywords} del episodio y s
 
 \subsection{Análisis de tono por artículo}
 
-Una vez que un artículo tiene cuerpo de texto \textbf{y pertenece a un episodio}, se envía a \textbf{gemini-2.5-flash-lite} para determinar su tono editorial. El requisito de pertenecer a un episodio es importante: no tiene sentido gastar llamadas a la API para analizar artículos que no van a participar en ninguna comparación de sesgos.
+Una vez que un artículo tiene cuerpo de texto \textbf{y pertenece a un evento}, se envía a \textbf{gemini-2.5-flash-lite} para determinar su tono editorial. El requisito de pertenecer a un evento es importante: no tiene sentido gastar llamadas a la API para analizar artículos que no van a participar en ninguna comparación de sesgos.
 
 Este modelo de alta capacidad de procesamiento (\textasciitilde{}1500 solicitudes/día en el nivel gratuito) es ideal para la clasificación de tono: es una tarea simple y repetitiva que se aplica a muchos artículos. La petición incluye el título y los primeros 1500 caracteres del cuerpo, con temperatura 0.1 (valores bajos hacen la respuesta más determinista y reproducible). El \textit{prompt} solicita una respuesta en formato JSON:
 
@@ -801,7 +798,7 @@ Chat conversacional & \texttt{gemini-2.5-flash-lite} & \textasciitilde{}20 req/d
 Además de la distribución por modelo, el ciclo aplica otras estrategias para no agotar la cuota:
 
 \begin{itemize}[nosep]
-  \item \textbf{Filtro por episodio}: solo se analizan artículos que ya pertenecen a un episodio (con \texttt{episodio\_id} asignado). Los artículos huérfanos no se envían a la API.
+  \item \textbf{Filtro por evento}: solo se analizan artículos que ya pertenecen a un evento (con \texttt{evento\_id} asignado). Los artículos huérfanos no se envían a la API.
   \item \textbf{Límite diario}: el ciclo procesa máximo 50 artículos para análisis de tono.
   \item \textbf{Pausa entre llamadas}: se introduce una pausa de 4 segundos entre llamadas consecutivas para evitar superar el límite por minuto de la API.
   \item \textbf{Pausa entre fases}: al terminar el análisis de tono se espera 65 segundos antes de iniciar el análisis de sesgo, para evitar que la fase de sesgo encuentre el límite por minuto recién saturado.
@@ -810,7 +807,7 @@ Además de la distribución por modelo, el ciclo aplica otras estrategias para n
   \item \textbf{Degradación elegante}: si la cuota diaria se agota definitivamente, el ciclo registra el aviso y detiene el lote del día sin interrumpir el proceso completo.
 \end{itemize}
 
-Al limitar el análisis solo a artículos en episodios y ejecutar el ciclo una vez al día en lugar de cada hora, el sistema hace un uso mucho más eficiente de la cuota gratuita y evita los errores de rate limiting que afectaban al sistema anterior.
+Al limitar el análisis solo a artículos en eventos y ejecutar el ciclo una vez al día en lugar de cada hora, el sistema hace un uso mucho más eficiente de la cuota gratuita y evita los errores de rate limiting que afectaban al sistema anterior.
 
 % ============================================================
 \section{API REST (FastAPI)}
@@ -828,13 +825,10 @@ El backend expone una API REST construida con \textbf{FastAPI}. Todos los endpoi
 \midrule
 GET & \texttt{/noticias} & \texttt{limit}, \texttt{medio\_nombre}, \texttt{orden} & Artículos paginados \\
 \rowcolor{grisCelda}
-GET & \texttt{/temas} & \texttt{limit} & Temas agrupados por importancia \\
-GET & \texttt{/temas/\{id\}} & --- & Detalle con lista de episodios \\
+GET & \texttt{/eventos} & \texttt{limit} & Eventos ordenados por fecha de detección \\
+GET & \texttt{/eventos/\{id\}} & --- & Detalle con cobertura y análisis por medio \\
 \rowcolor{grisCelda}
-GET & \texttt{/episodios} & \texttt{limit} & Episodios con sesgo promedio \\
-GET & \texttt{/episodios/\{id\}} & --- & Detalle con cobertura por medio \\
-\rowcolor{grisCelda}
-GET & \texttt{/sesgos} & \texttt{limit} & Episodios con mayor divergencia \\
+GET & \texttt{/sesgos} & \texttt{limit} & Eventos con mayor divergencia editorial \\
 GET & \texttt{/medios} & --- & Lista de medios monitoreados \\
 \rowcolor{grisCelda}
 POST & \texttt{/chat} & \texttt{mensaje}, \texttt{historial} & Asistente IA conversacional \\
@@ -843,11 +837,11 @@ POST & \texttt{/chat} & \texttt{mensaje}, \texttt{historial} & Asistente IA conv
 \label{tab:endpoints}
 \end{table}
 
-El parámetro \texttt{orden} en \texttt{/noticias} acepta \texttt{fecha} (por fecha de publicación) o \texttt{scraping} (por fecha de recolección, útil para ver lo más reciente). El \texttt{score\_importancia} de un episodio se calcula como la fracción de medios monitoreados que lo cubren: $4/6 = 0{,}67$.
+El parámetro \texttt{orden} en \texttt{/noticias} acepta \texttt{fecha} (por fecha de publicación) o \texttt{scraping} (por fecha de recolección, útil para ver lo más reciente). El \texttt{score\_importancia} de un evento se calcula como la fracción de medios monitoreados que lo cubren: $4/6 = 0{,}67$.
 
-\subsection*{Ejemplo de respuesta de \texttt{/episodios/\{id\}}}
+\subsection*{Ejemplo de respuesta de \texttt{/eventos/\{id\}}}
 
-\begin{lstlisting}[caption=Respuesta abreviada del endpoint de detalle de episodio]
+\begin{lstlisting}[caption=Respuesta abreviada del endpoint de detalle de evento]
 {
   "id": 123,
   "titulo": "Bolivia anuncia reforma tributaria",
@@ -855,7 +849,6 @@ El parámetro \texttt{orden} en \texttt{/noticias} acepta \texttt{fecha} (por fe
   "score_importancia": 0.67,
   "imagen_url": "https://eldeber.com.bo/img/reforma.jpg",
   "keywords": ["reforma tributaria", "impuesto", "gobierno"],
-  "tema_id": 45,
   "articulos_por_medio": {
     "El Deber": [{
       "titulo": "...",
@@ -879,7 +872,7 @@ El endpoint \texttt{POST /chat} integra Gemini con \textit{function calling} (he
 
 \begin{itemize}[nosep]
   \item \texttt{buscar\_noticias}: busca artículos por texto libre o medio.
-  \item \texttt{get\_eventos}: obtiene los episodios más recientes o importantes.
+  \item \texttt{get\_eventos}: obtiene los eventos más recientes o importantes.
   \item \texttt{comparar\_cobertura}: compara cómo distintos medios cubrieron un evento.
   \item \texttt{resumen\_estadisticas}: devuelve métricas globales del sistema.
 \end{itemize}
@@ -894,7 +887,7 @@ Gemini puede encadenar hasta 3 rondas de uso de herramientas antes de generar la
 \rowcolor{azulAS!15}
 \textbf{Tipo} & \textbf{Campos clave} & \textbf{Comportamiento en UI} \\
 \midrule
-\texttt{episodio} & id, titulo, medios, score\_importancia, imagen\_url & Abre \texttt{/episodios/\{id\}} \\
+\texttt{evento} & id, titulo, medios, score\_importancia, imagen\_url & Abre \texttt{/eventos/\{id\}} \\
 \rowcolor{grisCelda}
 \texttt{articulo} & id, titulo, url, medio, tono, imagen\_url & Abre URL original (nueva pestaña) \\
 \bottomrule
@@ -907,7 +900,7 @@ Gemini puede encadenar hasta 3 rondas de uso de herramientas antes de generar la
   "tools_usadas": ["get_eventos", "buscar_noticias"],
   "cards": [
     {
-      "tipo": "episodio",
+      "tipo": "evento",
       "id": 42,
       "titulo": "Reforma tributaria en debate",
       "medios": ["El Deber", "Los Tiempos", "Brujula Digital"],
@@ -934,23 +927,23 @@ La interfaz web está construida con \textbf{Astro} en modo de renderizado en se
 
 \subsection{Portada (/)}
 
-La portada es la vista principal del sistema. Está implementada como un componente React interactivo (\texttt{PortadaContenido.tsx}) que recibe todos los temas del servidor y maneja el estado de filtrado en el cliente sin recargar la página.
+La portada es la vista principal del sistema. Está implementada como un componente React interactivo (\texttt{PortadaContenido.tsx}) que recibe todos los eventos del servidor y maneja el estado de filtrado en el cliente sin recargar la página.
 
 \subsubsection*{Filtro de categorías}
 
-En la parte superior de la portada aparece una fila de botones con las categorías detectadas automáticamente a partir de las palabras clave de los temas (Política, Economía, Deportes, Sociedad, Internacional, Cultura). Al hacer clic en una categoría, la vista se actualiza instantáneamente mostrando solo los temas de esa categoría. Un botón ``Todas'' restablece la vista completa.
+En la parte superior de la portada aparece una fila de botones con las categorías detectadas automáticamente a partir de las palabras clave de los eventos (Política, Economía, Deportes, Sociedad, Internacional, Cultura). Al hacer clic en una categoría, la vista se actualiza instantáneamente mostrando solo los eventos de esa categoría. Un botón ``Todas'' restablece la vista completa.
 
-Las categorías se infieren en el frontend a partir del campo \texttt{keywords} de cada tema, sin requerir ningún cambio en la base de datos: el módulo \texttt{categorias.ts} aplica un diccionario de palabras clave asociadas a cada categoría.
+Las categorías se infieren en el frontend a partir del campo \texttt{keywords} de cada evento, sin requerir ningún cambio en la base de datos: el módulo \texttt{categorias.ts} aplica un diccionario de palabras clave asociadas a cada categoría.
 
-\subsubsection*{Tema destacado}
+\subsubsection*{Evento destacado}
 
-El primer tema de la categoría activa (o el más importante globalmente) se presenta en formato destacado: una tarjeta horizontal que ocupa todo el ancho disponible, con la imagen de portada a la izquierda y el texto a la derecha. Si la imagen no está disponible o no carga, la tarjeta ocupa el ancho completo con solo el texto.
+El primer evento de la categoría activa (o el más importante globalmente) se presenta en formato destacado: una tarjeta horizontal que ocupa todo el ancho disponible, con la imagen de portada a la izquierda y el texto a la derecha. Si la imagen no está disponible, la tarjeta muestra una franja de color de la categoría con el título (el mismo fallback visual de \texttt{EventoCard}).
 
-El enlace de la tarjeta usa una lógica de \textbf{navegación directa}: si el tema tiene un único episodio, el clic lleva directamente a \texttt{/episodios/\{id\}} sin pasar por la página intermedia del tema. Si el tema tiene múltiples episodios, el clic lleva a \texttt{/temas/\{id\}} para mostrar la lista de episodios.
+El enlace de cada tarjeta lleva directamente a \texttt{/eventos/\{id\}}.
 
-\subsubsection*{Grid de temas}
+\subsubsection*{Grid de eventos}
 
-El resto de los temas se presenta en un grid de tres columnas adaptable al ancho de pantalla (\textit{responsive}). Cada tarjeta (\texttt{EventoCard}) muestra: imagen de portada (si existe), categoría con su color, título, barra de importancia y los medios que lo cubrieron. La misma lógica de navegación directa aplica a todas las tarjetas del grid.
+El resto de los eventos se presenta en un grid de tres columnas adaptable al ancho de pantalla (\textit{responsive}). Cada tarjeta (\texttt{EventoCard}) muestra: imagen de portada (si existe) o una franja de color de la categoría con el título del evento como \textbf{fallback visual}, categoría con su color, título, barra de importancia y los medios que lo cubrieron. El fallback se activa tanto cuando el artículo no tiene \texttt{imagen\_url} como cuando la imagen devuelve error HTTP al cargar.
 
 \subsubsection*{Asistente IA flotante}
 
@@ -965,39 +958,34 @@ El asistente incluye cuatro capas de interactividad diseñadas para facilitar la
 
   \item \textbf{Renderizado enriquecido}: las respuestas de Gemini pueden incluir texto en \textbf{negrita} (marcado con \texttt{**texto**}) y listas con guiones. El componente detecta automáticamente estos patrones y los convierte en elementos HTML con formato, haciendo la respuesta más legible.
 
-  \item \textbf{Panel de estadísticas}: un botón ``$\equiv$ Stats'' en la cabecera del panel consulta el endpoint \texttt{GET /stats} y muestra un resumen del sistema: número de episodios y temas detectados, artículos recolectados, artículos analizados, medio más activo y episodio con mayor divergencia editorial. Este panel sirve como punto de entrada visual al estado actual del sistema.
+  \item \textbf{Panel de estadísticas}: un botón ``$\equiv$ Stats'' en la cabecera del panel consulta el endpoint \texttt{GET /stats} y muestra un resumen del sistema: número de eventos detectados, artículos recolectados, artículos analizados, medio más activo y evento con mayor divergencia editorial. Este panel sirve como punto de entrada visual al estado actual del sistema.
 \end{enumerate}
 
-Cuando el asistente responde, el texto aparece acompañado de tarjetas (\textit{cards}) de episodios o artículos relacionados con la pregunta. Cada tarjeta es un enlace directo al episodio o al artículo original, con el título, el medio y (cuando está disponible) la imagen de portada.
+Cuando el asistente responde, el texto aparece acompañado de tarjetas (\textit{cards}) de eventos o artículos relacionados con la pregunta. Cada tarjeta es un enlace directo al evento o al artículo original, con el título, el medio y (cuando está disponible) la imagen de portada.
 
-\subsection{Temas (/temas) y Episodios (/episodios/[id])}
+\subsection{Eventos (/eventos y /eventos/[id])}
 
-La página \texttt{/temas} es el listado completo de temas detectados, ordenados por fecha de detección y filtrables por categoría mediante parámetro de URL (\texttt{?categoria=Política}). Cada fila incluye el título del tema, los medios que lo cubren, el número de episodios y el tiempo relativo de detección.
+La página \texttt{/eventos} es el listado cronológico completo de todos los eventos detectados, filtrable por categoría mediante parámetro de URL (\texttt{?categoria=Política}). Cada fila incluye el título del evento, los medios que lo cubren y el tiempo relativo de detección.
 
-La página \texttt{/temas/[id]} muestra los episodios de un tema con más de uno. Si el tema tiene un solo episodio (situación frecuente mientras el sistema acumula datos), la página realiza un \textbf{redirect 302} automático al episodio correspondiente, evitando el nivel intermedio.
-
-La página \texttt{/episodios/[id]} es el detalle de un episodio concreto. Incluye:
+La página \texttt{/eventos/[id]} es el detalle de un evento concreto. Incluye:
 \begin{itemize}[nosep]
-  \item Cabecera con título, categoría, relevancia y medios cubriendo el episodio.
-  \item Enlace de navegación \textit{ascendente} al tema padre (\texttt{↑ Ver tema}) cuando el episodio pertenece a un tema con múltiples episodios.
+  \item Cabecera con título, categoría, relevancia y medios que cubren el evento.
   \item \textbf{Sesgómetro} (\texttt{SesgometroComparativo.tsx}): eje horizontal $-1$ a $+1$ con un punto por cada medio. Solo aparece cuando hay análisis de sesgo completado para al menos 2 medios.
-  \item \textbf{Cobertura por medio} (\texttt{CoberturaArticulos.tsx}): sección expandible por cada medio que cubre el episodio, con el artículo, su tono y enlace al original.
+  \item \textbf{Cobertura por medio} (\texttt{CoberturaArticulos.tsx}): sección expandible por cada medio que cubre el evento, con el artículo, su tono y enlace al original.
 \end{itemize}
-
-Las rutas antiguas \texttt{/eventos} y \texttt{/eventos/[id]} redirigen con código 301 a \texttt{/temas} y \texttt{/episodios/[id]} respectivamente, preservando la compatibilidad con enlaces externos ya publicados.
 
 \subsection{Cronología (/cronologia)}
 
-Esta vista reemplaza las páginas \texttt{/timeline} y \texttt{/serie} del sistema anterior, unificándolas en una visualización más informativa y visualmente clara.
+Esta vista reemplaza las páginas \texttt{/timeline} y \texttt{/serie} de versiones anteriores, unificándolas en una visualización más informativa y visualmente clara.
 
 \subsubsection*{Gráfico beeswarm}
 
-El elemento central es un gráfico SVG de tipo \textbf{beeswarm}: cada punto representa un episodio, su posición horizontal indica la fecha de detección, y su posición vertical se calcula automáticamente para evitar que los puntos se superpongan (de ahí el nombre ``beeswarm'' --- panal de abejas).
+El elemento central es un gráfico SVG de tipo \textbf{beeswarm}: cada punto representa un evento, su posición horizontal indica la fecha de detección, y su posición vertical se calcula automáticamente para evitar que los puntos se superpongan (de ahí el nombre ``beeswarm'' --- panal de abejas).
 
 El gráfico codifica dos dimensiones de información:
 
 \begin{itemize}[nosep]
-  \item \textbf{Color}: representa el sesgo promedio del episodio entre sus medios.
+  \item \textbf{Color}: representa el sesgo promedio del evento entre sus medios.
     \begin{itemize}[nosep]
       \item Rojo ($\#8b1a1a$): sesgo promedio negativo (cobertura crítica).
       \item Gris neutro ($\#8a7a62$): sesgo próximo a cero (cobertura equilibrada).
@@ -1005,22 +993,22 @@ El gráfico codifica dos dimensiones de información:
       \item Gris oscuro ($\#4a4a4a$): sin datos de sesgo (el artículo aún no fue analizado).
     \end{itemize}
     La transición entre colores no es abrupta: el componente \texttt{lerpHex()} interpola el color de forma suave entre los extremos rojo y verde pasando por el neutro.
-  \item \textbf{Tamaño}: proporcional al \texttt{score\_importancia} del episodio. Un episodio cubierto por los seis medios ($1.0$) tiene un radio máximo; uno cubierto por dos medios ($0.33$) tiene un radio mínimo.
+  \item \textbf{Tamaño}: proporcional al \texttt{score\_importancia} del evento. Un evento cubierto por los seis medios ($1.0$) tiene un radio máximo; uno cubierto por dos medios ($0.33$) tiene un radio mínimo.
 \end{itemize}
 
-Al pasar el cursor sobre un punto aparece un \textit{tooltip} con el título del episodio, la fecha, el sesgo promedio y el número de medios. Al hacer clic se navega al detalle del episodio (\texttt{/episodios/[id]}).
+Al pasar el cursor sobre un punto aparece un \textit{tooltip} con el título del evento, la fecha, el sesgo promedio y el número de medios. Al hacer clic se navega al detalle del evento (\texttt{/eventos/[id]}).
 
 \subsubsection*{Leyenda}
 
 Bajo el gráfico se muestra una leyenda con dos elementos: una barra de gradiente horizontal que ilustra la escala de colores de sesgo (rojo→gris→verde), y tres círculos de ejemplo que muestran la correspondencia entre tamaño y porcentaje de importancia.
 
-\subsubsection*{Tarjetas de episodios}
+\subsubsection*{Tarjetas de eventos}
 
-Debajo del gráfico se listan todos los episodios en formato de tarjeta, ordenados por fecha. El borde izquierdo de cada tarjeta tiene el color del sesgo promedio del episodio, creando coherencia visual con el gráfico superior.
+Debajo del gráfico se listan todos los eventos en formato de tarjeta, ordenados por fecha. El borde izquierdo de cada tarjeta tiene el color del sesgo promedio del evento, creando coherencia visual con el gráfico superior.
 
 \subsection{Sesgos (/sesgos)}
 
-Visualización centrada en las diferencias editoriales. Para cada episodio con análisis de sesgo, se representa un eje horizontal de $-1$ a $+1$ con un punto por cada medio que lo cubre. La dispersión visual de los puntos muestra intuitivamente la divergencia: puntos muy separados indican coberturas muy distintas, puntos agrupados indican consenso editorial. Un algoritmo de \textit{beeswarm} evita la superposición de etiquetas cuando varios medios tienen valores similares.
+Visualización centrada en las diferencias editoriales. Para cada evento con análisis de sesgo, se representa un eje horizontal de $-1$ a $+1$ con un punto por cada medio que lo cubre. La dispersión visual de los puntos muestra intuitivamente la divergencia: puntos muy separados indican coberturas muy distintas, puntos agrupados indican consenso editorial. Un algoritmo de \textit{beeswarm} evita la superposición de etiquetas cuando varios medios tienen valores similares.
 
 \subsection{Stack tecnológico}
 
@@ -1064,9 +1052,9 @@ Embeddings locales (MiniLM) para clustering
 PostgreSQL + campo JSON para \texttt{analisis}
   & MongoDB
   & Un solo servicio (Supabase); consultas SQL para campos relacionales + flexibilidad JSON para campo variable. \\
-Umbrales coseno 0.75 (episodios) y 0.65 (temas)
-  & Un solo umbral global
-  & El umbral estricto (0.75) garantiza que los episodios son hechos puntuales concretos; el laxo (0.65) permite agrupar episodios de la misma historia aunque usen vocabulario parcialmente distinto. \\
+Umbral coseno único 0.75 para clustering y matching
+  & Umbral más bajo / sin umbral de matching
+  & El umbral estricto (0.75) garantiza que los eventos son hechos puntuales concretos. Se aplica tanto al Union-Find (formación de clusters nuevos) como a la comparación con eventos existentes, evitando asignaciones erróneas por similitud superficial. \\
 \rowcolor{grisCelda}
 Astro SSR + \texttt{@astrojs/node}
   & Next.js / SvelteKit
@@ -1082,7 +1070,7 @@ Ciclo diario (CronTrigger) en lugar de cada 30/60 min
   & Interval scheduler
   & El ciclo cada 30 min agotaba la cuota de Gemini y generaba artículos sin analizar acumulados. Un ciclo diario es predecible y compatible con la cuota gratuita. \\
 \rowcolor{grisCelda}
-2+ medios distintos para crear un episodio
+2+ medios distintos para crear un evento
   & Cualquier cluster
   & Sin este filtro, la BD se llena de artículos individuales sin posibilidad de análisis comparativo, que es el objetivo central del sistema. \\
 og:image desde metadato Open Graph
@@ -1091,28 +1079,28 @@ og:image desde metadato Open Graph
 \rowcolor{grisCelda}
 Chat responde con tarjetas estructuradas
   & Solo texto plano
-  & Las tarjetas permiten navegación directa al episodio o artículo relevante, convirtiendo el chat en un punto de entrada a todo el sistema. \\
+  & Las tarjetas permiten navegación directa al evento o artículo relevante, convirtiendo el chat en un punto de entrada a todo el sistema. \\
 \rowcolor{grisCelda}
 Filtro de 7 días post-extracción (portal)
   & Sin filtro / filtro al descubrir URL
   & El portal no expone la fecha hasta visitar el artículo; el filtro se aplica en Etapa 2 tras extraer la fecha real. Artículos más viejos no son relevantes para análisis de cobertura actual. \\
+\rowcolor{grisCelda}
+Fallback visual (franja de color) cuando no hay imagen
+  & Imagen genérica / sin fallback
+  & Cuando \texttt{imagen\_url} es nula o falla al cargar, \texttt{EventoCard} muestra una franja del color de la categoría del evento con el título. Esto mantiene la coherencia visual del grid sin depender de imágenes externas siempre disponibles. \\
 Preguntas sugeridas + selector de medio en chat
   & Chat de texto libre únicamente
   & Reducen la barrera de entrada: el usuario puede explorar los datos sin saber qué preguntar, y el selector de medio añade contexto sin escribirlo manualmente. \\
 \rowcolor{grisCelda}
 3 modelos Gemini distintos por tarea (tono / sesgo / chat)
   & Un solo modelo para todo
-  & Cada modelo tiene su propia cuota gratuita diaria. Asignar tono al modelo de mayor cuota (\textasciitilde{}1500 req/día), sesgo al más capaz y chat a uno intermedio maximiza el uso sin coste adicional. \\
+  & Cada modelo tiene su propia cuota gratuita diaria. Asignar tono al modelo de mayor cuota (\textasciitilde{}1500 req/día), sesgo al más capaz y chat a uno intermedio maximiza el uso sin coste adicional. Solo se analizan artículos con \texttt{evento\_id} asignado, evitando llamadas innecesarias para artículos sin cobertura cruzada. \\
 Límite de 20 artículos por medio por ciclo de scraping
   & Sin límite / procesar todo
   & Evita que portadas con muchos artículos antiguos saturen la cola de análisis. La deduplicación garantiza que los artículos ya almacenados no se cuentan. \\
-\rowcolor{grisCelda}
-Dos niveles de clustering: episodios (sim $> 0{,}75$, 48h) y temas (sim $> 0{,}65$, 14 días)
-  & Un solo nivel de eventos
-  & Los episodios capturan el hecho puntual con criterios estrictos (distintos medios, keywords comunes, ventana corta). Los temas agrupan episodios relacionados a lo largo del tiempo, permitiendo rastrear historias en desarrollo. Un solo nivel con el umbral laxo generaba mega-clusters mezclando hechos no relacionados por transitividad. \\
 Selección del artículo representativo por centroide semántico
   & Primer artículo insertado en el cluster
-  & El centroide es el embedding promedio del cluster; el artículo más cercano a él es el que mejor representa el significado colectivo del grupo. El primer artículo puede ser periférico o el menos representativo si el cluster crece en días sucesivos. \\
+  & El centroide es el embedding promedio del cluster; el artículo más cercano a él es el que mejor representa el significado colectivo del grupo. El primer artículo puede ser periférico o el menos representativo si el evento acumula artículos en días sucesivos. \\
 \bottomrule
 \end{tabular}
 \label{tab:decisiones}
@@ -1153,13 +1141,13 @@ Las peticiones de scraping salientes son completamente independientes de Traefik
 
 A continuación se presenta un ejemplo concreto de funcionamiento del sistema con datos reales.
 
-\subsection*{Episodio: partido de fútbol}
+\subsection*{Evento: partido de fútbol}
 
-El episodio ``Bolívar empata con Nacional Potosí'' fue detectado con cobertura de cuatro medios (Red Uno, El Deber, Los Tiempos, Erbol), obteniendo un \textit{score} de importancia de $4/6 = 0{,}67$ (67\%). El sistema detectó este episodio porque cuatro redacciones distintas publicaron artículos similares el mismo día; al superar el requisito de 2+ medios y el umbral de similitud, se creó el episodio automáticamente. El artículo representante fue seleccionado por centroide.
+El evento ``Bolívar empata con Nacional Potosí'' fue detectado con cobertura de cuatro medios (Red Uno, El Deber, Los Tiempos, Erbol), obteniendo un \textit{score} de importancia de $4/6 = 0{,}67$ (67\%). El sistema detectó este evento porque cuatro redacciones distintas publicaron artículos similares el mismo día; al superar el requisito de 2+ medios, el umbral de similitud (0,75) y el requisito de $\geq$2 palabras clave comunes, se creó el evento automáticamente. El artículo representante fue seleccionado por centroide.
 
 \begin{table}[h]
 \centering
-\caption{Análisis de sesgo por medio para el episodio de fútbol}
+\caption{Análisis de sesgo por medio para el evento de fútbol}
 \begin{tabular}{@{}lrl@{}}
 \toprule
 \rowcolor{azulAS!15}
@@ -1180,7 +1168,7 @@ Los Tiempos      & $+0.00$ & Neutral / equilibrado \\
 
 \textit{El partido entre Bolívar y Nacional Potosí fue cubierto por cuatro medios con enfoques distintos. Brújula Digital destacó los fallos defensivos del conjunto paceño, mientras que Los Tiempos mantuvo un tono descriptivo sin valoraciones. El Deber mencionó brevemente el resultado sin análisis adicional. La divergencia de 0.40 indica diferencias moderadas en el encuadre pero sin posiciones editoriales extremas.}
 
-En el gráfico de cronología, este episodio aparecería como un punto de tamaño mediano (67\% de importancia) con un color tirando a gris neutro (sesgo promedio cercano a $-0{,}17$), ubicado en la fecha de detección correspondiente.
+En el gráfico de cronología, este evento aparecería como un punto de tamaño mediano (67\% de importancia) con un color tirando a gris neutro (sesgo promedio cercano a $-0{,}17$), ubicado en la fecha de detección correspondiente.
 
 % ============================================================
 \section{Limitaciones y Trabajo Futuro}
@@ -1189,17 +1177,15 @@ En el gráfico de cronología, este episodio aparecería como un punto de tamañ
 \subsection*{Limitaciones actuales}
 
 \begin{itemize}[nosep]
-  \item \textbf{Disponibilidad de imágenes}: no todos los portales bolivianos publican el metadato \texttt{og:image} en sus artículos. Los episodios sin imagen (o cuyo artículo representante no tiene imagen) se muestran con una franja de color como alternativa, pero la experiencia visual es menos rica. Esto depende de la configuración interna de cada portal y escapa al control del sistema.
+  \item \textbf{Disponibilidad de imágenes}: no todos los portales bolivianos publican el metadato \texttt{og:image} en sus artículos. Los eventos sin imagen (o cuyo artículo representante no tiene imagen) se muestran con la franja de color de la categoría como alternativa visual. Esto depende de la configuración interna de cada portal y escapa al control del sistema.
 
   \item \textbf{La Razón solo por RSS}: al ser una SPA con JavaScript, no es posible hacer scraping directo del portal. El RSS introduce el retraso típico de este medio (generalmente horas, no semanas, pero inferior al scraping directo). Además, el RSS no incluye metadatos \texttt{og:image}, por lo que los artículos de La Razón raramente tienen imagen.
 
-  \item \textbf{Union-Find sin corrección dinámica}: una vez que un artículo se asigna a un episodio, no puede ser reasignado si el cluster crece con artículos que cambian su centro. La selección por centroide mitiga el problema del representante periférico, pero no reubica artículos ya asignados.
+  \item \textbf{Union-Find sin corrección dinámica}: una vez que un artículo se asigna a un evento, no puede ser reasignado si el cluster crece con artículos que cambian su centro. La selección por centroide mitiga el problema del representante periférico, pero no reubica artículos ya asignados.
 
-  \item \textbf{Baja cobertura cruzada}: la fragmentación regional de los medios bolivianos hace que muchos artículos solo sean cubiertos por uno o dos medios. El requisito de 2+ medios filtra correctamente estos casos, pero reduce el número total de episodios detectados. El análisis de sesgo comparativo requiere mínimo dos medios con texto (o título como fallback).
+  \item \textbf{Baja cobertura cruzada}: la fragmentación regional de los medios bolivianos hace que muchos artículos solo sean cubiertos por uno o dos medios. El requisito de 2+ medios filtra correctamente estos casos, pero reduce el número total de eventos detectados. El análisis de sesgo comparativo requiere mínimo dos medios con texto (o título como fallback).
 
-  \item \textbf{Jerarquía temas-episodios con datos escasos}: con pocos días de cobertura, cada episodio genera su propio tema en relación 1:1. La jerarquía de dos niveles se vuelve útil al acumular semanas de datos, cuando múltiples episodios de la misma historia comienzan a agruparse bajo un mismo tema.
-
-  \item \textbf{Cronología de sesgo}: el gráfico beeswarm solo es informativo para episodios con análisis de sesgo ya completado. Episodios recientes aún en cola de análisis aparecen con color gris neutro, lo que puede confundirse con sesgo real de cero.
+  \item \textbf{Cronología de sesgo}: el gráfico beeswarm solo es informativo para eventos con análisis de sesgo ya completado. Eventos recientes aún en cola de análisis aparecen con color gris neutro, lo que puede confundirse con sesgo real de cero.
 
   \item \textbf{Velocidad de embeddings}: en CPU, agrupar 100 artículos tarda aproximadamente 70 segundos. Con una base de datos de miles de artículos, el ciclo de análisis puede extenderse varios minutos.
 \end{itemize}
@@ -1209,9 +1195,9 @@ En el gráfico de cronología, este episodio aparecería como un punto de tamañ
 \begin{itemize}[nosep]
   \item \textbf{Reconocimiento de entidades nombradas (NER)}: identificar personas, organizaciones y lugares mencionados en los artículos para rastrear cómo distintos medios referencian a los mismos actores a lo largo del tiempo.
 
-  \item \textbf{Resúmenes automáticos de episodios}: generar un resumen unificado que combine la perspectiva de todos los medios que cubrieron el mismo episodio, ofreciendo una visión sintética al lector.
+  \item \textbf{Resúmenes automáticos de eventos}: generar un resumen unificado que combine la perspectiva de todos los medios que cubrieron el mismo evento, ofreciendo una visión sintética al lector.
 
-  \item \textbf{Notificaciones push}: alertar a usuarios suscritos cuando se detecten episodios de alta importancia (score $> 0.8$) o divergencias editoriales elevadas (divergencia $> 0.7$).
+  \item \textbf{Notificaciones push}: alertar a usuarios suscritos cuando se detecten eventos de alta importancia (score $> 0.8$) o divergencias editoriales elevadas (divergencia $> 0.7$).
 
   \item \textbf{Tendencia de sentimiento por medio}: gráfico temporal que muestre si el tono editorial de cada medio hacia ciertos temas ha cambiado a lo largo de semanas o meses.
 

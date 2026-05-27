@@ -44,7 +44,8 @@ CONFIGS = {
     "Brújula Digital": {
         "listing_url": "https://brujuladigital.net",
         "base_url": "https://brujuladigital.net",
-        "url_pattern": r"^/[a-z\-]+/[a-z0-9\-]{10,}",
+        # Noticias: /seccion/YYYY/MM/DD/slug  |  Opinión: /opinion/slug
+        "url_pattern": r"^/[a-z\-]+/(\d{4}/\d{2}/\d{2}/.+|[a-z0-9\-]{10,})",
         "exclude_fragments": ["/tag/", "/autor/", "/categoria/"],
     },
 }
