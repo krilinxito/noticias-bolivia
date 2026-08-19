@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import CORS_ORIGINS
 from app.scheduler import iniciar_scheduler, detener_scheduler
 from app.api.routes import noticias, medios, chat, sesgos, stats, eventos
 
@@ -23,8 +24,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=CORS_ORIGINS,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 

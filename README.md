@@ -65,6 +65,19 @@ Dos jobs diarios: scraping a las 10:00 UTC, agrupación y análisis a las 11:00 
 
 ---
 
+## Límites de la API
+
+El endpoint `/chat` llama a Gemini con *function calling*, así que una sola pregunta puede
+disparar varias rondas contra el modelo. Para que una API pública no agote la cuota:
+
+- **CORS acotado** a `CORS_ORIGINS` en vez de `*`, para que no lo puedan embeber desde otra web.
+- **Límite por IP** en `/chat`: `CHAT_LIMITE` peticiones por `CHAT_VENTANA_SEG` segundos.
+  Es un contador en memoria, suficiente para un despliegue de un solo contenedor; con varias
+  réplicas cada proceso llevaría su propia cuenta y habría que moverlo a Redis.
+
+Conviene además fijar una cuota diaria sobre la propia API key en Google AI Studio: es el
+único techo que sigue valiendo aunque todo lo demás falle.
+
 ## Cómo correrlo
 
 ```bash

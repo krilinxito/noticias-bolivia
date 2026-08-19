@@ -1,7 +1,9 @@
 import json
+import time
+from collections import defaultdict, deque
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
@@ -9,10 +11,43 @@ from google.genai import types
 from loguru import logger
 
 from app.analysis.gemini import _get_client, MODEL_CHAT
+from app.config import CHAT_LIMITE, CHAT_VENTANA_SEG
 from app.database import SessionLocal
 from app.models import Articulo, Evento, Medio
 
 router = APIRouter()
+
+# Límite por IP en memoria. Suficiente para un despliegue de un solo contenedor
+# y sin dependencias nuevas; si algún día se escala a varias réplicas hay que
+# moverlo a Redis, porque cada proceso llevaría su propia cuenta.
+_visitas: dict[str, deque] = defaultdict(deque)
+
+
+def _verificar_limite(request: Request) -> None:
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (
+        request.client.host if request.client else "desconocida"
+    )
+    ahora = time.monotonic()
+    reciente = _visitas[ip]
+
+    while reciente and ahora - reciente[0] > CHAT_VENTANA_SEG:
+        reciente.popleft()
+
+    if len(reciente) >= CHAT_LIMITE:
+        espera = int(CHAT_VENTANA_SEG - (ahora - reciente[0])) + 1
+        logger.warning(f"Chat: límite alcanzado por {ip}")
+        raise HTTPException(
+            status_code=429,
+            detail=f"Demasiadas consultas. Intenta de nuevo en {espera} segundos.",
+            headers={"Retry-After": str(espera)},
+        )
+
+    reciente.append(ahora)
+
+    # Evita que el diccionario crezca sin techo con IPs que no vuelven.
+    if len(_visitas) > 5000:
+        for otra in [k for k, v in _visitas.items() if not v]:
+            del _visitas[otra]
 
 SYSTEM_PROMPT = """Eres un analista de medios bolivianos. Tu función es responder preguntas
 sobre cobertura noticiosa, sesgo editorial y tendencias en los 6 medios que monitoreamos:
@@ -235,7 +270,8 @@ class ChatRequest(BaseModel):
 
 
 @router.post("")
-def chat(req: ChatRequest, db: Session = Depends(get_db)):
+def chat(req: ChatRequest, request: Request, db: Session = Depends(get_db)):
+    _verificar_limite(request)
     try:
         client = _get_client()
     except Exception as e:
